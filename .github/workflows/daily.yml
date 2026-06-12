@@ -1,0 +1,54 @@
+name: Daily refresh & deploy
+
+on:
+  schedule:
+    - cron: "30 5 * * *"        # every day 05:30 UTC
+  workflow_dispatch:             # manual run button
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # FastF1 raw telemetry cache — only re-downloads when a NEW round needs baking
+      - uses: actions/cache@v4
+        with:
+          path: data/ff1cache
+          key: ff1cache-v1
+
+      - name: Install dependencies
+        run: pip install --quiet numpy requests scipy pandas fastf1
+
+      - name: Refresh live data (news · results · standings · forecast)
+        run: python f1_fetch.py --refresh
+
+      - name: Build (prediction model · maps · race-replay bake · all pages)
+        run: python build.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

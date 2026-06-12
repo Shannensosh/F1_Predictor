@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.DS_Store
+nohup.out
+# FastF1 raw telemetry cache (hundreds of MB — rebuilt/cached in CI)
+data/ff1cache/
+# repo-internal computed cache + any local venv
+f1-race-replay/computed_data/
+f1-race-replay/venv/

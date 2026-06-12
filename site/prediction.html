@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PITWALL F1 · Prediction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+
+</head>
+<body>
+<header><div class="wrap hbar">
+  <a class="logo" href="index.html"><span class="sq"></span>PITWALL<span class="mk">·F1 2026</span></a>
+  
+  <button class="menu-btn" onclick="toggleMenu()">≡</button>
+  <nav class="tabs"><a href="index.html">Overview</a><a href="live-timing.html">Live Timing</a><a href="schedule.html">Schedule</a><a href="results.html">Results</a><a href="drivers.html">Drivers</a><a href="driver-stats.html">Stats</a><a href="prediction.html" class="active">Prediction</a></nav>
+</div></header>
+<main><div class="wrap">
+<div class="page-head"><div><h1>Prediction Engine</h1><p>Win probability for the next Grand Prix and the 2026 title race — transparent, recency-weighted, and Monte-Carlo simulated.</p></div></div>
+    <div class="card glow card-pad" style="display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center">
+      <div><div class="caps">Next race · Round 7</div>
+        <h2 style="font-size:24px;font-weight:800;margin:6px 0 2px">🇪🇸 Barcelona Grand Prix</h2>
+        <div class="muted">Circuit de Barcelona-Catalunya · 2026-06-14 · Permanent circuit</div>
+        <div class="flex gap8 wrap-f" style="margin-top:12px">
+          <span class="chip lime">Downforce 78</span>
+          <span class="chip">Power 50</span>
+          <span class="chip">Tyre stress 82</span>
+          <span class="chip dim">Overtaking 45</span>
+        </div></div>
+      <div class="center"><div class="caps">Pole favourite</div>
+        <div style="font-family:'Titillium Web';font-weight:800;font-size:22px;color:var(--lime)">Antonelli</div>
+        <div class="mono" style="font-size:26px">28%</div></div>
+    </div>
+        <div class="grid g2" style="margin-top:14px;align-items:start">
+          <div class="card"><div class="sec-title" style="margin-top:0">Race-Day Forecast · Barcelona</div>
+            <div class="flex gap16 ac wrap-f">
+              <div style="font-size:40px">⛅</div>
+              <div><div style="font-family:'Titillium Web';font-weight:700;font-size:18px">Partly cloudy</div>
+                <div class="muted mono" style="font-size:12px">2026-06-14 · forecast (Open-Meteo)</div></div>
+            </div>
+            <div class="flex gap8 wrap-f" style="margin-top:12px">
+              <span class="chip">🌡️ 30.4° / 16.8°</span>
+              <span class="chip dim">🌧️ 0% rain</span>
+              <span class="chip dim">💨 13.7 km/h</span>
+            </div>
+            <div style="margin-top:12px"><span class="chip green">Dry forecast — no wet adjustment</span></div>
+            <div class="note" style="margin-top:10px">When rain is likely, a curated driver <b>wet-skill</b> swings the
+              next-race odds — strong wet drivers gain, weaker ones lose, scaled by the rain probability.</div>
+          </div>
+          <div class="card"><div class="sec-title" style="margin-top:0">Wet-Weather Pace (curated)</div>
+            <div class="barrow"><span class="blabel">Verstappen</span><span class="bar"><i style="width:96%;background:#3671C6"></i></span><span class="bval">96</span></div><div class="barrow"><span class="blabel">Hamilton</span><span class="bar"><i style="width:93%;background:#E8002D"></i></span><span class="bval">93</span></div><div class="barrow"><span class="blabel">Alonso</span><span class="bar"><i style="width:91%;background:#229971"></i></span><span class="bval">91</span></div><div class="barrow"><span class="blabel">Norris</span><span class="bar"><i style="width:85%;background:#FF8000"></i></span><span class="bval">85</span></div><div class="barrow"><span class="blabel">Russell</span><span class="bar"><i style="width:83%;background:#00D7B6"></i></span><span class="bval">83</span></div><div class="barrow"><span class="blabel">Sainz</span><span class="bar"><i style="width:82%;background:#64C4FF"></i></span><span class="bval">82</span></div></div>
+        </div>
+    <div class="grid g2" style="margin-top:20px;align-items:start">
+      <div class="card"><div class="sec-title" style="margin-top:0">Barcelona Grand Prix · Win Probability</div><div class="barrow"><span class="blabel">Antonelli</span><span class="bar"><i style="width:100%;background:#00D7B6"></i></span><span class="bval">27.9%</span></div><div class="barrow"><span class="blabel">Russell</span><span class="bar"><i style="width:74%;background:#00D7B6"></i></span><span class="bval">20.5%</span></div><div class="barrow"><span class="blabel">Piastri</span><span class="bar"><i style="width:38%;background:#FF8000"></i></span><span class="bval">10.5%</span></div><div class="barrow"><span class="blabel">Leclerc</span><span class="bar"><i style="width:36%;background:#E8002D"></i></span><span class="bval">10.0%</span></div><div class="barrow"><span class="blabel">Norris</span><span class="bar"><i style="width:35%;background:#FF8000"></i></span><span class="bval">9.8%</span></div><div class="barrow"><span class="blabel">Verstappen</span><span class="bar"><i style="width:29%;background:#3671C6"></i></span><span class="bval">8.2%</span></div><div class="barrow"><span class="blabel">Hamilton</span><span class="bar"><i style="width:27%;background:#E8002D"></i></span><span class="bval">7.6%</span></div><div class="barrow"><span class="blabel">Hadjar</span><span class="bar"><i style="width:4%;background:#3671C6"></i></span><span class="bval">1.2%</span></div><div class="barrow"><span class="blabel">Lawson</span><span class="bar"><i style="width:2%;background:#6692FF"></i></span><span class="bval">0.7%</span></div><div class="barrow"><span class="blabel">Gasly</span><span class="bar"><i style="width:2%;background:#0093CC"></i></span><span class="bval">0.6%</span></div><div class="barrow"><span class="blabel">Lindblad</span><span class="bar"><i style="width:2%;background:#6692FF"></i></span><span class="bval">0.5%</span></div><div class="barrow"><span class="blabel">Sainz</span><span class="bar"><i style="width:2%;background:#64C4FF"></i></span><span class="bval">0.5%</span></div><div class="barrow"><span class="blabel">Colapinto</span><span class="bar"><i style="width:1%;background:#0093CC"></i></span><span class="bval">0.4%</span></div><div class="barrow"><span class="blabel">Alonso</span><span class="bar"><i style="width:1%;background:#229971"></i></span><span class="bval">0.3%</span></div><div class="barrow"><span class="blabel">Ocon</span><span class="bar"><i style="width:1%;background:#B6BABD"></i></span><span class="bval">0.3%</span></div><div class="barrow"><span class="blabel">Bearman</span><span class="bar"><i style="width:1%;background:#B6BABD"></i></span><span class="bval">0.2%</span></div><div class="barrow"><span class="blabel">Albon</span><span class="bar"><i style="width:1%;background:#64C4FF"></i></span><span class="bval">0.2%</span></div><div class="barrow"><span class="blabel">Bortoleto</span><span class="bar"><i style="width:1%;background:#00C752"></i></span><span class="bval">0.2%</span></div><div class="barrow"><span class="blabel">Hülkenberg</span><span class="bar"><i style="width:1%;background:#00C752"></i></span><span class="bval">0.2%</span></div><div class="barrow"><span class="blabel">Pérez</span><span class="bar"><i style="width:1%;background:#C8A24A"></i></span><span class="bval">0.2%</span></div><div class="barrow"><span class="blabel">Stroll</span><span class="bar"><i style="width:1%;background:#229971"></i></span><span class="bval">0.2%</span></div><div class="barrow"><span class="blabel">Bottas</span><span class="bar"><i style="width:0%;background:#C8A24A"></i></span><span class="bval">0.1%</span></div></div>
+      <div class="card"><div class="sec-title" style="margin-top:0">Podium Probability</div><div class="barrow"><span class="blabel">Antonelli</span><span class="bar green"><i style="width:62%"></i></span><span class="bval">62%</span></div><div class="barrow"><span class="blabel">Russell</span><span class="bar green"><i style="width:53%"></i></span><span class="bval">53%</span></div><div class="barrow"><span class="blabel">Piastri</span><span class="bar green"><i style="width:34%"></i></span><span class="bval">34%</span></div><div class="barrow"><span class="blabel">Leclerc</span><span class="bar green"><i style="width:32%"></i></span><span class="bval">32%</span></div><div class="barrow"><span class="blabel">Norris</span><span class="bar green"><i style="width:30%"></i></span><span class="bval">30%</span></div><div class="barrow"><span class="blabel">Verstappen</span><span class="bar green"><i style="width:29%"></i></span><span class="bval">29%</span></div><div class="barrow"><span class="blabel">Hamilton</span><span class="bar green"><i style="width:28%"></i></span><span class="bval">28%</span></div><div class="barrow"><span class="blabel">Hadjar</span><span class="bar green"><i style="width:6%"></i></span><span class="bval">6%</span></div><div class="barrow"><span class="blabel">Lawson</span><span class="bar green"><i style="width:3%"></i></span><span class="bval">3%</span></div><div class="barrow"><span class="blabel">Gasly</span><span class="bar green"><i style="width:3%"></i></span><span class="bval">3%</span></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px;align-items:start">
+      <div class="card"><div class="sec-title" style="margin-top:0">2026 Drivers' Title</div><div class="barrow"><span class="blabel"><b>Antonelli</b> <span class="muted mono" style="font-size:10px">156p</span></span><span class="bar"><i style="width:100%;background:#00D7B6"></i></span><span class="bval">67.0%</span></div><div class="barrow"><span class="blabel"><b>Russell</b> <span class="muted mono" style="font-size:10px">88p</span></span><span class="bar"><i style="width:26%;background:#00D7B6"></i></span><span class="bval">17.1%</span></div><div class="barrow"><span class="blabel"><b>Hamilton</b> <span class="muted mono" style="font-size:10px">90p</span></span><span class="bar"><i style="width:8%;background:#E8002D"></i></span><span class="bval">5.4%</span></div><div class="barrow"><span class="blabel"><b>Leclerc</b> <span class="muted mono" style="font-size:10px">75p</span></span><span class="bar"><i style="width:7%;background:#E8002D"></i></span><span class="bval">4.5%</span></div><div class="barrow"><span class="blabel"><b>Piastri</b> <span class="muted mono" style="font-size:10px">60p</span></span><span class="bar"><i style="width:4%;background:#FF8000"></i></span><span class="bval">2.9%</span></div><div class="barrow"><span class="blabel"><b>Verstappen</b> <span class="muted mono" style="font-size:10px">43p</span></span><span class="bar"><i style="width:3%;background:#3671C6"></i></span><span class="bval">2.1%</span></div><div class="barrow"><span class="blabel"><b>Norris</b> <span class="muted mono" style="font-size:10px">58p</span></span><span class="bar"><i style="width:1%;background:#FF8000"></i></span><span class="bval">1.0%</span></div></div>
+      <div class="card"><div class="sec-title" style="margin-top:0">2026 Constructors' Title</div><div class="barrow"><span class="blabel">Mercedes</span><span class="bar"><i style="width:100%;background:#00D7B6"></i></span><span class="bval">88.5%</span></div><div class="barrow"><span class="blabel">Ferrari</span><span class="bar"><i style="width:9%;background:#E8002D"></i></span><span class="bval">8.4%</span></div><div class="barrow"><span class="blabel">McLaren</span><span class="bar"><i style="width:3%;background:#FF8000"></i></span><span class="bval">2.9%</span></div><div class="barrow"><span class="blabel">Red Bull</span><span class="bar"><i style="width:0%;background:#3671C6"></i></span><span class="bval">0.2%</span></div></div>
+    </div><div class="sec-title">Factors used by the model</div><p class="muted" style="font-size:12.5px;margin:-4px 0 12px">Four <b>base factors</b> form each driver's Power Rating (weights sum to 100%). Two <b>per-race multipliers</b> then adjust it for the specific circuit, and a simulation shock adds season-long uncertainty. Source badges show real API data vs curated estimates.</p><div class="grid g3"><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Form</span>
+            <span class="chip green">REAL DATA</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Base rating</span>
+            <span class="chip lime">weight 38%</span>
+            <span class="chip dim">Race results 2024–26</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">Recency-weighted championship points per race. 2026 counts most; older seasons fade and within a season weight halves every 6 races.</div>
+        </div><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Qualifying pace</span>
+            <span class="chip green">REAL DATA</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Base rating</span>
+            <span class="chip lime">weight 19%</span>
+            <span class="chip dim">Qualifying / grid 2024–26</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">Recency-weighted average grid position — one-lap speed, separate from race pace.</div>
+        </div><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Reliability</span>
+            <span class="chip green">REAL DATA</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Base rating</span>
+            <span class="chip lime">weight 14%</span>
+            <span class="chip dim">DNFs in results 2024–26</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">1 − DNF rate (weighted). Also sets each car&#x27;s per-race retirement chance in the sim.</div>
+        </div><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Car index</span>
+            <span class="chip lime">MIXED</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Base rating</span>
+            <span class="chip lime">weight 29%</span>
+            <span class="chip dim">Constructor standings + curated package</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">80% live 2026 constructor strength, 20% curated package (downforce + straight-line).</div>
+        </div><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Circuit fit</span>
+            <span class="chip amber">CURATED EST.</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Per-race ×</span>
+            
+            <span class="chip dim">Curated car ↔ circuit traits</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">Per-race ×0.88–1.12. Matches the car&#x27;s downforce, straight-line speed, tyre management, weight and over/understeer balance to the circuit&#x27;s demands (curves vs straights, tyre stress).</div>
+        </div><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Track history</span>
+            <span class="chip green">REAL DATA</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Per-race ×</span>
+            
+            <span class="chip dim">Driver&#x27;s finishes at this circuit 2024–26</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">Per-race ×0.88–1.12 from the driver&#x27;s own average finishing position at that specific circuit. Strong history boosts; weak history penalises; none = neutral.</div>
+        </div><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Weather (wet pace)</span>
+            <span class="chip lime">MIXED</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Per-race ×</span>
+            
+            <span class="chip dim">Open-Meteo forecast + curated wet skill</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">If rain is forecast for the next race, a curated driver wet-weather skill swings the odds — strong wet drivers (e.g. Verstappen, Hamilton, Alonso) gain, weaker ones lose. Scales with the rain probability; no effect on a dry forecast.</div>
+        </div><div class="card">
+          <div class="flex jb ac" style="margin-bottom:6px">
+            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">Form uncertainty</span>
+            <span class="chip dim">MODEL</span>
+          </div>
+          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
+            <span class="chip dim">Simulation</span>
+            
+            <span class="chip dim">Per-simulation random shock</span>
+          </div>
+          <div class="muted" style="font-size:12px;line-height:1.45">Each of the 20k simulated seasons draws a constant per-driver strength shock (upgrades, slumps) so the points leader isn&#x27;t a near-certainty.</div>
+        </div></div><div class="sec-title">Driver Factor Breakdown</div><p class="muted" style="font-size:12.5px;margin:-4px 0 12px">Click a driver to see how their rating is built and adjusted for Barcelona.</p>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#00D7B6"></span>
+            <b>Andrea Kimi Antonelli</b><span class="muted" style="font-size:12px">Mercedes</span>
+            <span style="margin-left:auto" class="chip lime">27.9% win</span>
+            <span class="chip green">62% podium</span>
+            <span class="chip">67.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.945 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:100%"></i></span><span class="bval">+38</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:80%"></i></span><span class="bval">P5</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:95%"></i></span><span class="bval">+13</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:97%"></i></span><span class="bval">+28</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +5.7%</span>
+              <span class="chip green">Track history +0.0%</span>
+              <span class="chip dim">no prior history</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~770 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +3.7 · power -0.5 · tyre +3.2 · weight +0.4 · balance -1.1</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.999</span>
+              <span class="chip dim">= rating 0.945 × fit 1.057 × history 1.000</span>
+              <span class="chip dim">Exp. pts here 15.5</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#00D7B6"></span>
+            <b>George Russell</b><span class="muted" style="font-size:12px">Mercedes</span>
+            <span style="margin-left:auto" class="chip lime">20.5% win</span>
+            <span class="chip green">53% podium</span>
+            <span class="chip">17.1% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.839 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:71%"></i></span><span class="bval">+27</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:86%"></i></span><span class="bval">P4</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:91%"></i></span><span class="bval">+13</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:97%"></i></span><span class="bval">+28</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +5.7%</span>
+              <span class="chip green">Track history +7.4%</span>
+              <span class="chip dim">4.0 avg finish</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~770 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +3.7 · power -0.5 · tyre +3.2 · weight +0.4 · balance -1.1</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.952</span>
+              <span class="chip dim">= rating 0.839 × fit 1.057 × history 1.074</span>
+              <span class="chip dim">Exp. pts here 13.7</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#FF8000"></span>
+            <b>Oscar Piastri</b><span class="muted" style="font-size:12px">McLaren</span>
+            <span style="margin-left:auto" class="chip lime">10.5% win</span>
+            <span class="chip green">34% podium</span>
+            <span class="chip">2.9% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.703 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:71%"></i></span><span class="bval">+27</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:82%"></i></span><span class="bval">P5</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:84%"></i></span><span class="bval">+12</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:55%"></i></span><span class="bval">+16</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +10.2%</span>
+              <span class="chip green">Track history +8.7%</span>
+              <span class="chip dim">2.9 avg finish</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~769 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +4.1 · power -0.4 · tyre +5.4 · weight +0.5 · balance +0.5</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.842</span>
+              <span class="chip dim">= rating 0.703 × fit 1.102 × history 1.087</span>
+              <span class="chip dim">Exp. pts here 10.2</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#E8002D"></span>
+            <b>Charles Leclerc</b><span class="muted" style="font-size:12px">Ferrari</span>
+            <span style="margin-left:auto" class="chip lime">10.0% win</span>
+            <span class="chip green">32% podium</span>
+            <span class="chip">4.5% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.724 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:66%"></i></span><span class="bval">+25</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:78%"></i></span><span class="bval">P5</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:85%"></i></span><span class="bval">+12</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:71%"></i></span><span class="bval">+20</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +3.8%</span>
+              <span class="chip green">Track history +7.9%</span>
+              <span class="chip dim">3.6 avg finish</span>
+              <span class="chip dim">Balance: Oversteer</span>
+              <span class="chip dim">~772 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +2.8 · power -0.7 · tyre +0.0 · weight +0.1 · balance +1.7</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.811</span>
+              <span class="chip dim">= rating 0.724 × fit 1.038 × history 1.079</span>
+              <span class="chip dim">Exp. pts here 9.9</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#FF8000"></span>
+            <b>Lando Norris</b><span class="muted" style="font-size:12px">McLaren</span>
+            <span style="margin-left:auto" class="chip lime">9.8% win</span>
+            <span class="chip green">30% podium</span>
+            <span class="chip">1.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.706 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:74%"></i></span><span class="bval">+28</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:86%"></i></span><span class="bval">P4</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:72%"></i></span><span class="bval">+10</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:55%"></i></span><span class="bval">+16</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +10.2%</span>
+              <span class="chip green">Track history +9.7%</span>
+              <span class="chip dim">2.0 avg finish</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~769 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +4.1 · power -0.4 · tyre +5.4 · weight +0.5 · balance +0.5</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.854</span>
+              <span class="chip dim">= rating 0.706 × fit 1.102 × history 1.097</span>
+              <span class="chip dim">Exp. pts here 8.9</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#3671C6"></span>
+            <b>Max Verstappen</b><span class="muted" style="font-size:12px">Red Bull</span>
+            <span style="margin-left:auto" class="chip lime">8.2% win</span>
+            <span class="chip green">29% podium</span>
+            <span class="chip">2.1% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.719 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:86%"></i></span><span class="bval">+33</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:83%"></i></span><span class="bval">P4</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:85%"></i></span><span class="bval">+12</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:40%"></i></span><span class="bval">+12</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +4.7%</span>
+              <span class="chip green">Track history +3.8%</span>
+              <span class="chip dim">7.2 avg finish</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~771 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +2.3 · power -0.6 · tyre +1.6 · weight +0.3 · balance +1.1</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.781</span>
+              <span class="chip dim">= rating 0.719 × fit 1.047 × history 1.038</span>
+              <span class="chip dim">Exp. pts here 9.2</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#E8002D"></span>
+            <b>Lewis Hamilton</b><span class="muted" style="font-size:12px">Ferrari</span>
+            <span style="margin-left:auto" class="chip lime">7.6% win</span>
+            <span class="chip green">28% podium</span>
+            <span class="chip">5.4% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.680 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:59%"></i></span><span class="bval">+22</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:64%"></i></span><span class="bval">P8</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:93%"></i></span><span class="bval">+13</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:71%"></i></span><span class="bval">+20</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +3.8%</span>
+              <span class="chip green">Track history +6.2%</span>
+              <span class="chip dim">5.1 avg finish</span>
+              <span class="chip dim">Balance: Oversteer</span>
+              <span class="chip dim">~772 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +2.8 · power -0.7 · tyre +0.0 · weight +0.1 · balance +1.7</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.750</span>
+              <span class="chip dim">= rating 0.680 × fit 1.038 × history 1.062</span>
+              <span class="chip dim">Exp. pts here 9.4</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#3671C6"></span>
+            <b>Isack Hadjar</b><span class="muted" style="font-size:12px">Red Bull</span>
+            <span style="margin-left:auto" class="chip lime">1.2% win</span>
+            <span class="chip green">6% podium</span>
+            <span class="chip">0.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.435 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:26%"></i></span><span class="bval">+10</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:59%"></i></span><span class="bval">P9</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:78%"></i></span><span class="bval">+11</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:40%"></i></span><span class="bval">+12</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip green">Circuit fit +4.7%</span>
+              <span class="chip green">Track history +4.0%</span>
+              <span class="chip dim">7.0 avg finish</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~771 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +2.3 · power -0.6 · tyre +1.6 · weight +0.3 · balance +1.1</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.474</span>
+              <span class="chip dim">= rating 0.435 × fit 1.047 × history 1.040</span>
+              <span class="chip dim">Exp. pts here 3.5</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#6692FF"></span>
+            <b>Liam Lawson</b><span class="muted" style="font-size:12px">RB F1 Team</span>
+            <span style="margin-left:auto" class="chip lime">0.7% win</span>
+            <span class="chip green">3% podium</span>
+            <span class="chip">0.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.355 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:19%"></i></span><span class="bval">+7</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:47%"></i></span><span class="bval">P12</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:83%"></i></span><span class="bval">+12</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:27%"></i></span><span class="bval">+8</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip red">Circuit fit -1.4%</span>
+              <span class="chip red">Track history -0.6%</span>
+              <span class="chip dim">11.0 avg finish</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~773 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce -0.5 · power -0.1 · tyre -1.1 · weight +0.0 · balance +0.3</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.348</span>
+              <span class="chip dim">= rating 0.355 × fit 0.986 × history 0.994</span>
+              <span class="chip dim">Exp. pts here 2.3</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#0093CC"></span>
+            <b>Pierre Gasly</b><span class="muted" style="font-size:12px">Alpine F1 Team</span>
+            <span style="margin-left:auto" class="chip lime">0.6% win</span>
+            <span class="chip green">3% podium</span>
+            <span class="chip">0.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.350 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:16%"></i></span><span class="bval">+6</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:46%"></i></span><span class="bval">P12</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:88%"></i></span><span class="bval">+12</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:26%"></i></span><span class="bval">+8</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip red">Circuit fit -6.5%</span>
+              <span class="chip green">Track history +2.5%</span>
+              <span class="chip dim">8.3 avg finish</span>
+              <span class="chip dim">Balance: Understeer</span>
+              <span class="chip dim">~778 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce -1.4 · power +0.2 · tyre -2.7 · weight -0.7 · balance -1.9</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.335</span>
+              <span class="chip dim">= rating 0.350 × fit 0.935 × history 1.025</span>
+              <span class="chip dim">Exp. pts here 2.3</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#6692FF"></span>
+            <b>Arvid Lindblad</b><span class="muted" style="font-size:12px">RB F1 Team</span>
+            <span style="margin-left:auto" class="chip lime">0.5% win</span>
+            <span class="chip green">2% podium</span>
+            <span class="chip">0.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.327 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:15%"></i></span><span class="bval">+6</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:42%"></i></span><span class="bval">P12</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:81%"></i></span><span class="bval">+11</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:27%"></i></span><span class="bval">+8</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip red">Circuit fit -1.4%</span>
+              <span class="chip green">Track history +0.0%</span>
+              <span class="chip dim">no prior history</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~773 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce -0.5 · power -0.1 · tyre -1.1 · weight +0.0 · balance +0.3</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.322</span>
+              <span class="chip dim">= rating 0.327 × fit 0.986 × history 1.000</span>
+              <span class="chip dim">Exp. pts here 1.9</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#64C4FF"></span>
+            <b>Carlos Sainz</b><span class="muted" style="font-size:12px">Williams</span>
+            <span style="margin-left:auto" class="chip lime">0.5% win</span>
+            <span class="chip green">3% podium</span>
+            <span class="chip">0.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.361 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:26%"></i></span><span class="bval">+10</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:50%"></i></span><span class="bval">P11</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:81%"></i></span><span class="bval">+11</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:18%"></i></span><span class="bval">+5</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip red">Circuit fit -2.9%</span>
+              <span class="chip red">Track history -1.1%</span>
+              <span class="chip dim">11.5 avg finish</span>
+              <span class="chip dim">Balance: Neutral</span>
+              <span class="chip dim">~774 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce -0.9 · power -0.5 · tyre -2.2 · weight -0.1 · balance +0.8</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.346</span>
+              <span class="chip dim">= rating 0.361 × fit 0.971 × history 0.989</span>
+              <span class="chip dim">Exp. pts here 2.2</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#0093CC"></span>
+            <b>Franco Colapinto</b><span class="muted" style="font-size:12px">Alpine F1 Team</span>
+            <span style="margin-left:auto" class="chip lime">0.4% win</span>
+            <span class="chip green">2% podium</span>
+            <span class="chip">0.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.294 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:8%"></i></span><span class="bval">+3</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:30%"></i></span><span class="bval">P15</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:92%"></i></span><span class="bval">+13</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:26%"></i></span><span class="bval">+8</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip red">Circuit fit -6.5%</span>
+              <span class="chip red">Track history -5.1%</span>
+              <span class="chip dim">15.0 avg finish</span>
+              <span class="chip dim">Balance: Understeer</span>
+              <span class="chip dim">~778 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce -1.4 · power +0.2 · tyre -2.7 · weight -0.7 · balance -1.9</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.261</span>
+              <span class="chip dim">= rating 0.294 × fit 0.935 × history 0.949</span>
+              <span class="chip dim">Exp. pts here 1.8</span>
+            </div>
+          </div>
+        </details>
+        <details class="card" style="margin-bottom:8px">
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+            <span class="teamdot" style="--c:#229971"></span>
+            <b>Fernando Alonso</b><span class="muted" style="font-size:12px">Aston Martin</span>
+            <span style="margin-left:auto" class="chip lime">0.3% win</span>
+            <span class="chip green">2% podium</span>
+            <span class="chip">0.0% title</span>
+          </summary>
+          <div style="margin-top:12px">
+            <div class="caps" style="margin-bottom:6px">Base power rating = 0.260 (weighted sum)</div>
+            <div class="barrow"><span class="blabel">Form ×0.38</span><span class="bar "><i style="width:11%"></i></span><span class="bval">+4</span></div>
+            <div class="barrow"><span class="blabel">Qualifying ×0.19</span><span class="bar "><i style="width:38%"></i></span><span class="bval">P14</span></div>
+            <div class="barrow"><span class="blabel">Reliability ×0.14</span><span class="bar "><i style="width:74%"></i></span><span class="bval">+10</span></div>
+            <div class="barrow"><span class="blabel">Car index ×0.29</span><span class="bar "><i style="width:15%"></i></span><span class="bval">+4</span></div>
+            <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Per-race multipliers · Barcelona</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip red">Circuit fit -1.7%</span>
+              <span class="chip green">Track history +0.6%</span>
+              <span class="chip dim">9.9 avg finish</span>
+              <span class="chip dim">Balance: Understeer</span>
+              <span class="chip dim">~775 kg</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — downforce +0.5 · power +-0.0 · tyre -0.5 · weight -0.3 · balance -1.4</div>
+            <div class="divider"></div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip lime">Race strength 0.257</span>
+              <span class="chip dim">= rating 0.260 × fit 0.983 × history 1.006</span>
+              <span class="chip dim">Exp. pts here 1.3</span>
+            </div>
+          </div>
+        </details>
+    <div class="sec-title">How the numbers are produced</div>
+    <div class="card card-pad">
+      <p style="font-size:13.5px">For each driver a <b>Power Rating</b> is the weighted sum of the four base
+      factors above. For every one of the 16 remaining rounds that rating is multiplied
+      by <b>circuit fit</b> and <b>track history</b> to get a per-race <b>strength</b>. A Plackett–Luce /
+      Gumbel simulator then runs the whole rest of the season <b>20,000 times</b> — sampling a
+      finishing order each race (plus retirements and a season-long form shock) — and counts how often each
+      driver wins the next race and the title.</p>
+      <div class="grid g4" style="margin-top:14px">
+        <div class="card kpi"><span class="k-label">Simulations</span><span class="k-val sm">20,000</span><span class="k-sub">full seasons</span></div>
+        <div class="card kpi"><span class="k-label">Remaining races</span><span class="k-val sm">16</span><span class="k-sub">rounds left</span></div>
+        <div class="card kpi"><span class="k-label">Circuit / history</span><span class="k-val sm">±12%</span><span class="k-sub">per-race nudge</span></div>
+        <div class="card kpi"><span class="k-label">Decisiveness β</span><span class="k-val sm">7.2</span><span class="k-sub">favourite strength</span></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:14px">
+        Recency weighting: 2026 races count ×1.00, 2025 ×0.55,
+        2024 ×0.25; within a season weight halves every 6 races.
+        Retirement chance per race = (1 − reliability). Season form shock σ = 1.6.
+      </p>
+    </div>
+    <div class="disclaimer">⚠️ <b>Educational / entertainment model.</b> Real data (results, qualifying,
+    reliability, standings) drives the ratings; car downforce, weight and handling balance are
+    <b>curated approximations</b> (no public API exposes them) and are labelled as estimates throughout.
+    Probabilities are model outputs, not predictions of fact. <b>Not betting advice.</b></div>
+</div></main>
+<footer><div class="wrap">
+  Data: <span class="mono">Jolpica/Ergast</span> + <span class="mono">OpenF1</span> ·
+  PITWALL · Educational / entertainment only — not affiliated with Formula 1.
+  Built 2026-06-12.
+</div></footer>
+
+<script src="assets/app.js"></script>
+
+</body>
+</html>
