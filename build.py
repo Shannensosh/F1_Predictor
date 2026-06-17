@@ -39,11 +39,17 @@ TEAM_COLORS = {
 def team_color(cid): return TEAM_COLORS.get(cid, "#8E8E93")
 
 NAV = [
-    ("index.html", "Overview"), ("live-timing.html", "Live Timing"),
+    ("dashboard.html", "Overview"), ("live-timing.html", "Live Timing"),
     ("schedule.html", "Schedule"), ("results.html", "Results"),
     ("drivers.html", "Drivers"),
     ("driver-stats.html", "Stats"), ("prediction.html", "Prediction"),
 ]
+
+# editorial splash hero image — CC BY-SA 4.0, Lukas Raich (Wikimedia Commons):
+# Ferrari (Sainz, #55) at the 2023 Austrian Grand Prix
+HERO_IMG = ("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/"
+            "FIA_F1_Austria_2023_Nr._55_%281%29.jpg/3840px-FIA_F1_Austria_2023_Nr._55_%281%29.jpg")
+HERO_CREDIT = 'Photo: Lukas Raich · CC BY-SA 4.0'
 
 # ── flag emoji for countries + driver nationalities ──────────────────────────
 _ISO = {
@@ -259,7 +265,7 @@ def page(title, active, body, data=None, js="", live_badge=None, head_extra=""):
 </head>
 <body>
 <header><div class="wrap hbar">
-  <a class="logo" href="index.html"><span class="sq"></span>PITWALL<span class="mk">·F1 2026</span></a>
+  <a class="logo" href="dashboard.html"><span class="sq"></span>PITWALL<span class="mk">·F1 2026</span></a>
   {badge}
   <button class="menu-btn" onclick="toggleMenu()">≡</button>
   <nav class="tabs">{nav}</nav>
@@ -356,6 +362,69 @@ def _hero_track_svg(d, cid):
     dd = "M" + "L".join(f"{ox+(x-minx)*sc:.1f},{oy+(y-miny)*sc:.1f}" for x, y in zip(xs, ys)) + "Z"
     return (f'<svg class="hero-track" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet">'
             f'<path d="{dd}"/></svg>')
+
+
+def build_splash(d):
+    """Editorial intro landing — full-bleed Ferrari hero that swipes up into
+    the dashboard on 'Start Racing'."""
+    nr = d["preds"]["next_race"]
+    total = len(d["sched"])
+    try:
+        nice = datetime.datetime.strptime(nr["date"], "%Y-%m-%d").strftime("%d %b %Y")
+    except Exception:
+        nice = nr["date"]
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PITWALL · F1 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body style="background:#0a0a0e">
+<div class="splash" id="splash">
+  <img class="splash-bg" src="{HERO_IMG}" alt="Ferrari Formula 1 car">
+  <div class="splash-scrim"></div>
+  <div class="splash-grid"></div>
+  <div class="splash-wrap">
+    <div class="splash-head">
+      <a class="logo" href="dashboard.html" style="font-size:19px"><span class="sq"></span>PITWALL<span class="mk">·F1 2026</span></a>
+      <button class="splash-enter" onclick="enter()">Enter dashboard →</button>
+    </div>
+    <div class="splash-mid">
+      <div class="splash-stat">2026 SEASON</div>
+      <h1 class="splash-h1">Lights Out,<br><span class="ghost">Full Data.</span></h1>
+      <p class="splash-sub">The entire 2026 Formula 1 grid in one place — live race replays,
+      championship standings, circuit maps, and a transparent win-probability engine.</p>
+      <div class="splash-actions">
+        <button class="splash-go" onclick="enter()">Start Racing
+          <span style="font-size:18px">↗</span></button>
+      </div>
+    </div>
+    <div class="splash-foot">
+      <div class="splash-credit">{HERO_CREDIT} · via Wikimedia Commons</div>
+      <a class="splash-next" href="dashboard.html" onclick="enter();return false;">
+        <div class="caps">Next Grand Prix · Round {nr['round']} / {total}</div>
+        <div class="nx-name">{flag(nr['country'])} {esc(nr['name'])}</div>
+        <div class="nx-meta">{esc(nr['circuitName'])} · {esc(nice)}</div>
+      </a>
+    </div>
+  </div>
+</div>
+<script>
+function enter(){{var s=document.getElementById('splash');s.classList.add('lift');
+  setTimeout(function(){{location.href='dashboard.html';}},720);}}
+// keyboard: Enter / Space / ↓ also proceeds
+document.addEventListener('keydown',function(e){{
+  if(e.key==='Enter'||e.key===' '||e.key==='ArrowDown'){{e.preventDefault();enter();}}}});
+// preload the dashboard so it appears instantly after the swipe
+var l=document.createElement('link');l.rel='prefetch';l.href='dashboard.html';document.head.appendChild(l);
+</script>
+</body>
+</html>"""
 
 
 def build_overview(d):
@@ -835,7 +904,8 @@ def main():
 
     print("» rendering pages")
     pages = {
-        "index.html": build_overview(d),
+        "index.html": build_splash(d),
+        "dashboard.html": build_overview(d),
         "live-timing.html": page("PITWALL F1 · Race Replay", "Live Timing",
                                   live_timing_body(d, ctx), data=replay,
                                   js=LIVE_JS, live_badge="Replay"),
