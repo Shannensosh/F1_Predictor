@@ -622,7 +622,7 @@ def fetch_circuit_photos(schedule):
     bad = ("map", "logo", "diagram", "podium", "helmet", "trophy", "plan", "layout",
            "signature", "seating")
     prev = {}
-    pf = os.path.join(DATA, "circuits_geo.json")
+    pf = os.path.join(DATA_DIR, "circuits_geo.json")
     if os.path.exists(pf):
         try:
             with open(pf) as f:
