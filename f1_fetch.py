@@ -590,6 +590,73 @@ CIRCUIT_OF1_LOC = {
 }
 
 
+# Per-circuit Commons search queries (representative aerial / track photos)
+CIRCUIT_PHOTO_QUERY = {
+    "albert_park": "Albert Park Circuit Melbourne", "shanghai": "Shanghai International Circuit aerial",
+    "suzuka": "Suzuka Circuit aerial", "miami": "Miami International Autodrome",
+    "villeneuve": "Circuit Gilles Villeneuve Montreal", "monaco": "Circuit de Monaco aerial",
+    "catalunya": "Circuit de Barcelona-Catalunya aerial", "red_bull_ring": "Red Bull Ring Spielberg aerial",
+    "silverstone": "Silverstone Circuit aerial", "spa": "Spa-Francorchamps circuit aerial",
+    "hungaroring": "Hungaroring aerial", "zandvoort": "Circuit Zandvoort aerial",
+    "monza": "Monza circuit aerial", "madring": "Madrid Spain skyline",
+    "baku": "Baku City Circuit", "marina_bay": "Marina Bay Street Circuit Singapore night",
+    "americas": "Circuit of the Americas aerial", "rodriguez": "Autodromo Hermanos Rodriguez",
+    "interlagos": "Interlagos circuit aerial", "vegas": "Las Vegas Strip night",
+    "losail": "Lusail International Circuit", "yas_marina": "Yas Marina Circuit aerial",
+}
+
+
+def _commons_search(query, limit=18):
+    u = "https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode({
+        "action": "query", "format": "json", "generator": "search", "gsrnamespace": 6,
+        "gsrsearch": query, "gsrlimit": limit, "prop": "imageinfo",
+        "iiprop": "url|size|extmetadata", "iiurlwidth": 1920})
+    return _get(u, cache_key=f"commons_{query}") or {}
+
+
+def fetch_circuit_photos(schedule):
+    """One representative CC-licensed landscape photo per 2026 circuit (Commons).
+    Carries forward previously-found photos so a rate-limited CI run never loses
+    images it already had."""
+    import re as _re
+    bad = ("map", "logo", "diagram", "podium", "helmet", "trophy", "plan", "layout",
+           "signature", "seating")
+    prev = {}
+    pf = os.path.join(DATA, "circuits_geo.json")
+    if os.path.exists(pf):
+        try:
+            with open(pf) as f:
+                old = json.load(f)
+            prev = {c: {"photo": v["photo"], "credit": v.get("photo_credit", "")}
+                    for c, v in old.items() if v.get("photo")}
+        except Exception:
+            pass
+    out = dict(prev)
+    for r in schedule:
+        cid = r["circuitId"]
+        if out.get(cid):            # already have a good photo from a prior run
+            continue
+        q = CIRCUIT_PHOTO_QUERY.get(cid, f'{r["circuitName"]}')
+        d = _commons_search(q)
+        cands = []
+        for p in d.get("query", {}).get("pages", {}).values():
+            ii = (p.get("imageinfo") or [{}])[0]
+            w, h, t = ii.get("width", 0), ii.get("height", 0), p.get("title", "")
+            if w >= 1400 and w > h * 1.25 and t.lower().endswith((".jpg", ".jpeg")) \
+                    and not any(k in t.lower() for k in bad):
+                meta = ii.get("extmetadata", {})
+                art = _re.sub("<.*?>", "", meta.get("Artist", {}).get("value", "")).strip()[:40]
+                lic = meta.get("LicenseShortName", {}).get("value", "")
+                # prefer clean aerials
+                score = w + (4000 if "skysat" in t.lower() or "aerial" in t.lower() else 0)
+                cands.append((score, ii.get("thumburl"), f"{art} · {lic}".strip(" ·")))
+        cands.sort(reverse=True)
+        if cands:
+            out[cid] = {"photo": cands[0][1], "credit": cands[0][2]}
+        time.sleep(0.15)
+    return out
+
+
 def build_circuit_outlines(schedule):
     """For each 2026 circuit, trace a real single-lap outline from the most recent
     matching OpenF1 race session. New circuits with no history get an empty outline."""
@@ -667,8 +734,14 @@ def fetch_all():
         outlines.setdefault(cid, {"outline": [], "source": None})
         outlines[cid]["geo"] = coords
         outlines[cid]["geo_source"] = "f1-circuits (bacinger) — georeferenced"
+    print("» Circuit hero photos (Wikimedia Commons)")
+    photos = fetch_circuit_photos(schedule)
+    for cid, ph in photos.items():
+        outlines.setdefault(cid, {"outline": [], "source": None})
+        outlines[cid]["photo"] = ph["photo"]
+        outlines[cid]["photo_credit"] = ph["credit"]
     _save("circuits_geo.json", outlines)
-    print(f"   geo for {len(geo_real)}/{len(schedule)} circuits")
+    print(f"   geo {len(geo_real)} · photos {len(photos)} / {len(schedule)} circuits")
 
     print("» Latest F1 news (RSS)")
     news = fetch_news()

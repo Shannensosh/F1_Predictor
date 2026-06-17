@@ -392,7 +392,6 @@ def build_splash(d):
   <div class="splash-wrap">
     <div class="splash-head">
       <a class="logo" href="dashboard.html" style="font-size:19px"><span class="sq"></span>PITWALL<span class="mk">·F1 2026</span></a>
-      <button class="splash-enter" onclick="enter()">Enter dashboard →</button>
     </div>
     <div class="splash-mid">
       <div class="splash-stat">2026 SEASON</div>
@@ -450,9 +449,15 @@ def build_overview(d):
     title_html = f'{esc(base)}<br><span style="-webkit-text-stroke:1px #fff;color:transparent">Grand Prix</span>' \
         if "Grand Prix" in nr["name"] else esc(nr["name"])
 
+    cgeo = d.get("geo", {}).get(nr["circuitId"], {})
+    cphoto = cgeo.get("photo")
+    ccredit = cgeo.get("photo_credit", "")
+    hero_bg = (f'<img class="hero-photo" src="{esc(cphoto)}" alt="" loading="eager" onerror="this.remove()">'
+               if cphoto else "")
     hero = f"""
-    <section class="hero-race">
-      {_hero_track_svg(d, nr["circuitId"])}
+    <section class="hero-race{' has-photo' if cphoto else ''}">
+      {hero_bg}{_hero_track_svg(d, nr["circuitId"])}
+      <div class="hero-scrim"></div>
       <div class="hero-inner">
         <div class="hero-eyebrow"><span class="chip lime">ROUND {nr['round']} / {total}</span>
           <span class="caps" style="margin:0">2026 Season · Next Up</span></div>
@@ -468,56 +473,55 @@ def build_overview(d):
         </div>
         <div class="hero-cta">
           <a class="btn primary" href="prediction.html">Race-day prediction →</a>
-          <a class="btn" href="live-timing.html">Watch replay</a>
-          <a class="btn" href="schedule.html">Circuit map</a>
+          <a class="btn ghost" href="live-timing.html">Watch replay</a>
+          <a class="btn ghost" href="schedule.html">Circuit map</a>
         </div>
       </div>
       <div class="hero-side">
         <div class="caps" style="margin-bottom:8px">Lights out in</div>
         <div class="countdown" id="cd"></div>
       </div>
+      {f'<div class="hero-credit">{esc(ccredit)} · Wikimedia</div>' if ccredit else ''}
     </section>"""
 
-    # ── headshot stat cards ─────────────────────────────────────────────────
+    # ── headshot stat cards: centred portrait + frosted info banner ─────────
     def shot_img(num):
         u = photo(num)
         return f'<img class="shot" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
 
-    lead_cards = ""
-    if leader:
-        lead_cards += f"""
-        <div class="lead-card" style="--c:{team_color(leader['constructorId'])}">
-          {shot_img(leader.get('num'))}
-          <div class="lead-num">{leader['points']:.0f}</div>
-          <div class="lead-top">Championship Leader <span class="delta up">▲ LEADS</span></div>
-          <div class="lead-name">{flag(leader['nationality'])} {esc(leader['family'])}</div>
-          <div class="lead-meta">{esc(leader['constructor'])} · {leader['wins']} wins this season</div>
-          <div class="lead-stat">{leader['points']:.0f} <span>PTS</span></div>
+    def lead_card(num, cid, label, delta, name, nat, stat_big, stat_unit, meta):
+        delta_html = f'<span class="delta {delta[0]}">{delta[1]}</span>' if delta else ""
+        return f"""
+        <div class="lead-card" style="--c:{team_color(cid)}">
+          <div class="lead-photo">{shot_img(num)}</div>
+          <div class="lead-banner">
+            <div class="lead-top">{esc(label)} {delta_html}</div>
+            <div class="lead-name">{flag(nat)} {esc(name)}</div>
+            <div class="lead-meta">{esc(meta)}</div>
+            <div class="lead-stat">{stat_big} <span>{esc(stat_unit)}</span></div>
+          </div>
         </div>"""
+
+    cards = []
+    if leader:
+        cards.append(lead_card(leader.get("num"), leader["constructorId"], "Championship Leader",
+                               ("up", "▲ LEADS"), leader["family"], leader["nationality"],
+                               f'{leader["points"]:.0f}', "PTS",
+                               f'{leader["constructor"]} · {leader["wins"]} wins'))
     if last_win:
         lw = next((x for x in dr if x["driverId"] == last_win["driverId"]), last_win)
         lw_wins = sum(1 for r in results.get("2026", []) for res in r["results"]
                       if res["driverId"] == last_win["driverId"] and res["pos"] == 1)
-        lead_cards += f"""
-        <div class="lead-card" style="--c:{team_color(last_win['constructorId'])}">
-          {shot_img(lw.get('num'))}
-          <div class="lead-num">P1</div>
-          <div class="lead-top">Last Winner · {esc(last['raceName'].replace(' Grand Prix','') if last else '')}</div>
-          <div class="lead-name">{flag(last_win.get('nationality'))} {esc(last_win['family'])}</div>
-          <div class="lead-meta">{esc(last_win['constructor'])}</div>
-          <div class="lead-stat">{lw_wins} <span>WINS '26</span></div>
-        </div>"""
+        cards.append(lead_card(lw.get("num"), last_win["constructorId"],
+                               f'Last Winner · {last["raceName"].replace(" Grand Prix","") if last else ""}',
+                               ("up", "P1"), last_win["family"], last_win.get("nationality"),
+                               f'{lw_wins}', "WINS '26", last_win["constructor"]))
     pc_d = next((x for x in dr if x["driverId"] == pred_champ["driverId"]), None)
-    lead_cards += f"""
-        <div class="lead-card" style="--c:{team_color(pred_champ['constructorId'])}">
-          {shot_img(pred_champ.get('num'))}
-          <div class="lead-num">{pred_champ['title_pct']:.0f}<span style="font-size:32px">%</span></div>
-          <div class="lead-top">Predicted 2026 Champion</div>
-          <div class="lead-name">{flag(pc_d['nationality']) if pc_d else ''} {esc(pred_champ['name'].split()[-1])}</div>
-          <div class="lead-meta">{esc(pred_champ['constructor'])} · model pick</div>
-          <div class="lead-stat">{pred_champ['title_pct']:.1f}<span>% TITLE</span></div>
-        </div>"""
-    lead = f'<div class="lead-grid">{lead_cards}</div>'
+    cards.append(lead_card(pred_champ.get("num"), pred_champ["constructorId"], "Predicted 2026 Champion",
+                           None, pred_champ["name"].split()[-1], pc_d["nationality"] if pc_d else None,
+                           f'{pred_champ["title_pct"]:.0f}<span class="pct">%</span>', "TITLE PROB.",
+                           f'{pred_champ["constructor"]} · model pick'))
+    lead = f'<div class="lead-grid">{"".join(cards)}</div>'
 
     # ── drivers' championship: podium top-3 + collapsible rest ──────────────
     def podium(x, cls):
@@ -538,8 +542,9 @@ def build_overview(d):
         f'<span class="mono">{x["points"]:.0f}</span></div>'
         for x in dr[3:])
     drivers_sec = f"""
-    <div class="sec-title">Drivers' Championship</div>
-    <div class="pod-grid">{dpods}</div>
+    <div class="sec-head"><h2>Drivers' Championship</h2>
+      <div class="sec-sub">Top three on the road · after {completed} rounds</div></div>
+    <div class="hscroll">{dpods}</div>
     <details class="standings-more"><summary>Show all {len(dr)} drivers · standings &amp; results →</summary>
       {drest}</details>"""
 
@@ -560,8 +565,9 @@ def build_overview(d):
         f'<span class="mono">{x["points"]:.0f}</span></div>'
         for x in cons[3:])
     cons_sec = f"""
-    <div class="sec-title">Constructors' Championship</div>
-    <div class="pod-grid">{cpods}</div>
+    <div class="sec-head"><h2>Constructors' Championship</h2>
+      <div class="sec-sub">The teams' title fight</div></div>
+    <div class="hscroll">{cpods}</div>
     <details class="standings-more"><summary>Show all {len(cons)} teams →</summary>{crest}</details>"""
 
     # ── Latest F1 news (scraped RSS) ────────────────────────────────────────
@@ -601,7 +607,9 @@ def build_overview(d):
       </div>
     </div>"""
 
-    body = (hero + lead + drivers_sec + cons_sec + news_inc)
+    paddock_head = ('<div class="sec-head"><h2>From the Paddock</h2>'
+                    '<div class="sec-sub">Latest headlines &amp; 2026 reliability</div></div>')
+    body = (hero + lead + drivers_sec + cons_sec + paddock_head + news_inc)
     cd_data = {"target": nr["date"] + "T" + (sched and "00:00:00") }
     # find next race time from schedule
     nr_full = next((r for r in sched if r["round"] == nr["round"]), None)
