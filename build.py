@@ -337,91 +337,163 @@ def line_chart(rounds, series_list, w=860, h=320):
 # ═════════════════════════════════════════════════════════════════════════════
 # Pages
 # ═════════════════════════════════════════════════════════════════════════════
+def _hero_track_svg(d, cid):
+    """Large faded circuit outline used as hero background art."""
+    g = d.get("geo", {}).get(cid, {})
+    pts = g.get("geo")
+    if pts:                                   # lat/lng → x=lng, y=-lat
+        xs = [p[1] for p in pts]; ys = [-p[0] for p in pts]
+    else:
+        ol = g.get("outline") or []
+        if len(ol) < 10:
+            return ""
+        xs = [p[0] for p in ol]; ys = [-p[1] for p in ol]
+    minx, maxx, miny, maxy = min(xs), max(xs), min(ys), max(ys)
+    sx, sy = (maxx - minx) or 1, (maxy - miny) or 1
+    W, H, pad = 440, 300, 24
+    sc = min((W - 2 * pad) / sx, (H - 2 * pad) / sy)
+    ox, oy = (W - sc * sx) / 2, (H - sc * sy) / 2
+    dd = "M" + "L".join(f"{ox+(x-minx)*sc:.1f},{oy+(y-miny)*sc:.1f}" for x, y in zip(xs, ys)) + "Z"
+    return (f'<svg class="hero-track" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet">'
+            f'<path d="{dd}"/></svg>')
+
+
 def build_overview(d):
     sched, results, standings, preds = d["sched"], d["results"], d["standings"], d["preds"]
     dr = standings["drivers"]; cons = standings["constructors"]
+    photos = standings.get("photos", {})
+    def photo(num): return photos.get(str(num))
     completed = max((r["round"] for r in results.get("2026", [])), default=0)
     total = len(sched)
     nr = preds["next_race"]
-    # last race winner
     last = max(results.get("2026", []), key=lambda r: r["round"], default=None)
     last_win = last["results"][0] if last and last["results"] else None
     leader = dr[0] if dr else None
     pred_champ = max(preds["drivers"], key=lambda x: x["title_pct"])
+    tr = nr["circuit_traits"]
 
-    # hero
-    nr_flag = flag(nr["country"])
+    try:
+        nice_date = datetime.datetime.strptime(nr["date"], "%Y-%m-%d").strftime("%d %b %Y")
+    except Exception:
+        nice_date = nr["date"]
+    # split race name onto two display lines (drop trailing "Grand Prix")
+    base = nr["name"].replace(" Grand Prix", "")
+    title_html = f'{esc(base)}<br><span style="-webkit-text-stroke:1px #fff;color:transparent">Grand Prix</span>' \
+        if "Grand Prix" in nr["name"] else esc(nr["name"])
+
     hero = f"""
-    <div class="card glow card-pad" style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
-      <div>
-        <div class="caps">Next Grand Prix · Round {nr['round']} of {total}</div>
-        <h1 style="font-size:34px;font-weight:800;margin:8px 0 4px">{nr_flag} {esc(nr['name'])}</h1>
-        <div class="muted">{esc(nr['circuitName'])} · {esc(nr['country'])} · {esc(nr['date'])}</div>
-        <div class="flex gap8 wrap-f" style="margin-top:14px">
-          <span class="chip lime">DF {nr['circuit_traits']['downforce']}</span>
-          <span class="chip">PWR {nr['circuit_traits']['power']}</span>
-          <span class="chip">TYRE {nr['circuit_traits']['tyre_stress']}</span>
-          <span class="chip dim">{esc(nr['circuit_traits']['type'].title())}</span>
+    <section class="hero-race">
+      {_hero_track_svg(d, nr["circuitId"])}
+      <div class="hero-inner">
+        <div class="hero-eyebrow"><span class="chip lime">ROUND {nr['round']} / {total}</span>
+          <span class="caps" style="margin:0">2026 Season · Next Up</span></div>
+        <div class="hero-flag">{flag(nr['country'])}</div>
+        <h1 class="hero-title">{title_html}</h1>
+        <div class="hero-sub">{esc(nr['circuitName'])} · {esc(nr['country'])} · {esc(nice_date)}</div>
+        <div class="hero-chips">
+          <span class="chip">{tr['type'].title()}</span>
+          <span class="chip">DF {tr['downforce']}</span>
+          <span class="chip">PWR {tr['power']}</span>
+          <span class="chip">Tyre {tr['tyre_stress']}</span>
+          <span class="chip dim">{C.layout(nr['circuitId'])['drs']} DRS · {tr['corners']} turns</span>
         </div>
-        <div style="margin-top:18px" class="flex gap12 wrap-f">
-          <a class="btn primary" href="prediction.html">View race prediction →</a>
-          <a class="btn" href="live-timing.html">Live timing</a>
+        <div class="hero-cta">
+          <a class="btn primary" href="prediction.html">Race-day prediction →</a>
+          <a class="btn" href="live-timing.html">Watch replay</a>
+          <a class="btn" href="schedule.html">Circuit map</a>
         </div>
       </div>
-      <div>
+      <div class="hero-side">
         <div class="caps" style="margin-bottom:8px">Lights out in</div>
         <div class="countdown" id="cd"></div>
       </div>
-    </div>"""
+    </section>"""
 
-    # KPI row
-    kpis = f"""
-    <div class="grid g4" style="margin-top:14px">
-      <div class="card kpi"><span class="k-label">Championship Leader</span>
-        <span class="k-val sm">{esc(leader['family']) if leader else '–'}</span>
-        <span class="k-sub">{team_dot(leader['constructorId']) if leader else ''}{leader['points']:.0f} pts · {leader['wins']} wins</span></div>
-      <div class="card kpi"><span class="k-label">Last Race Winner</span>
-        <span class="k-val sm">{esc(last_win['family']) if last_win else '–'}</span>
-        <span class="k-sub">{esc(last['raceName']) if last else ''}</span></div>
-      <div class="card kpi"><span class="k-label">Season Progress</span>
-        <span class="k-val">{completed}<span class="muted" style="font-size:16px">/{total}</span></span>
-        <span class="k-sub">rounds completed</span></div>
-      <div class="card kpi glow"><span class="k-label">Predicted 2026 Champion</span>
-        <span class="k-val sm lime">{esc(pred_champ['name'].split()[-1])}</span>
-        <span class="k-sub">{pred_champ['title_pct']:.0f}% title probability</span></div>
-    </div>"""
+    # ── headshot stat cards ─────────────────────────────────────────────────
+    def shot_img(num):
+        u = photo(num)
+        return f'<img class="shot" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
 
-    # mini standings
-    drows = "".join(
-        f'<div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;'
-        f'align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)">'
-        f'<span class="pos pos-{x["pos"] if x["pos"]<=3 else 0}">{x["pos"]}</span>'
-        f'<span>{team_dot(x["constructorId"])}{esc(x["given"][0])}. {esc(x["family"])}</span>'
+    lead_cards = ""
+    if leader:
+        lead_cards += f"""
+        <div class="lead-card" style="--c:{team_color(leader['constructorId'])}">
+          {shot_img(leader.get('num'))}
+          <div class="lead-num">{leader['points']:.0f}</div>
+          <div class="lead-top">Championship Leader <span class="delta up">▲ LEADS</span></div>
+          <div class="lead-name">{flag(leader['nationality'])} {esc(leader['family'])}</div>
+          <div class="lead-meta">{esc(leader['constructor'])} · {leader['wins']} wins this season</div>
+          <div class="lead-stat">{leader['points']:.0f} <span>PTS</span></div>
+        </div>"""
+    if last_win:
+        lw = next((x for x in dr if x["driverId"] == last_win["driverId"]), last_win)
+        lw_wins = sum(1 for r in results.get("2026", []) for res in r["results"]
+                      if res["driverId"] == last_win["driverId"] and res["pos"] == 1)
+        lead_cards += f"""
+        <div class="lead-card" style="--c:{team_color(last_win['constructorId'])}">
+          {shot_img(lw.get('num'))}
+          <div class="lead-num">P1</div>
+          <div class="lead-top">Last Winner · {esc(last['raceName'].replace(' Grand Prix','') if last else '')}</div>
+          <div class="lead-name">{flag(last_win.get('nationality'))} {esc(last_win['family'])}</div>
+          <div class="lead-meta">{esc(last_win['constructor'])}</div>
+          <div class="lead-stat">{lw_wins} <span>WINS '26</span></div>
+        </div>"""
+    pc_d = next((x for x in dr if x["driverId"] == pred_champ["driverId"]), None)
+    lead_cards += f"""
+        <div class="lead-card" style="--c:{team_color(pred_champ['constructorId'])}">
+          {shot_img(pred_champ.get('num'))}
+          <div class="lead-num">{pred_champ['title_pct']:.0f}<span style="font-size:32px">%</span></div>
+          <div class="lead-top">Predicted 2026 Champion</div>
+          <div class="lead-name">{flag(pc_d['nationality']) if pc_d else ''} {esc(pred_champ['name'].split()[-1])}</div>
+          <div class="lead-meta">{esc(pred_champ['constructor'])} · model pick</div>
+          <div class="lead-stat">{pred_champ['title_pct']:.1f}<span>% TITLE</span></div>
+        </div>"""
+    lead = f'<div class="lead-grid">{lead_cards}</div>'
+
+    # ── drivers' championship: podium top-3 + collapsible rest ──────────────
+    def podium(x, cls):
+        return f"""
+        <div class="pod-card {cls}" style="--c:{team_color(x['constructorId'])}">
+          <div class="pod-pos">{x['pos']}</div>
+          {shot_img(x.get('num'))}
+          <div class="pod-name">{flag(x['nationality'])} {esc(x['family'])}</div>
+          <div class="pod-team">{team_dot(x['constructorId'])}{esc(x['constructor'])} · {x['wins']} wins</div>
+          <div class="pod-pts">{x['points']:.0f} <span>PTS</span></div>
+        </div>"""
+    dpods = "".join(podium(x, f"p{x['pos']}") for x in dr[:3])
+    drest = "".join(
+        f'<div class="srow"><span class="pos">{x["pos"]}</span>'
+        f'{team_dot(x["constructorId"])}'
+        f'<span><b>{esc(x["code"])}</b> {esc(x["family"])} '
+        f'<span class="muted" style="font-size:11px">{esc(x["constructor"])}</span></span>'
         f'<span class="mono">{x["points"]:.0f}</span></div>'
-        for x in dr[:8])
-    crows = "".join(
-        f'<div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;'
-        f'align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)">'
-        f'<span class="pos pos-{x["pos"] if x["pos"]<=3 else 0}">{x["pos"]}</span>'
-        f'<span>{team_dot(x["constructorId"])}{esc(x["name"])}</span>'
+        for x in dr[3:])
+    drivers_sec = f"""
+    <div class="sec-title">Drivers' Championship</div>
+    <div class="pod-grid">{dpods}</div>
+    <details class="standings-more"><summary>Show all {len(dr)} drivers · standings &amp; results →</summary>
+      {drest}</details>"""
+
+    # ── constructors: podium top-3 + collapsible rest ───────────────────────
+    def cpodium(x):
+        return f"""
+        <div class="pod-card p{x['pos']}" style="--c:{team_color(x['constructorId'])}">
+          <div class="pod-pos">{x['pos']}</div>
+          <div class="pod-name" style="margin-top:6px">{esc(x['name'])}</div>
+          <div class="pod-team">{x['wins']} wins</div>
+          <div class="pod-pts" style="margin-top:auto">{x['points']:.0f} <span>PTS</span></div>
+          <div style="position:absolute;right:0;top:0;bottom:0;width:8px;background:{team_color(x['constructorId'])}"></div>
+        </div>"""
+    cpods = "".join(cpodium(x) for x in cons[:3])
+    crest = "".join(
+        f'<div class="srow"><span class="pos">{x["pos"]}</span>'
+        f'{team_dot(x["constructorId"])}<span><b>{esc(x["name"])}</b></span>'
         f'<span class="mono">{x["points"]:.0f}</span></div>'
-        for x in cons[:6])
-
-    # next race top-5 prediction bars
-    top5 = preds["drivers"][:5]
-    pbars = "".join(
-        bar_row(d2["name"].split()[-1], d2["win_pct"] / (top5[0]["win_pct"] or 1),
-                f'{d2["win_pct"]:.0f}%') for d2 in top5)
-
-    cols = f"""
-    <div class="grid g3" style="margin-top:20px">
-      <div class="card"><div class="sec-title" style="margin-top:0">Drivers' Championship</div>{drows}
-        <a class="muted" style="font-size:12px;display:inline-block;margin-top:10px" href="results.html#standings">Full standings →</a></div>
-      <div class="card"><div class="sec-title" style="margin-top:0">Constructors</div>{crows}
-        <a class="muted" style="font-size:12px;display:inline-block;margin-top:10px" href="results.html#standings">Full table →</a></div>
-      <div class="card"><div class="sec-title" style="margin-top:0">{esc(nr['name'])} — Win %</div>{pbars}
-        <a class="muted" style="font-size:12px;display:inline-block;margin-top:10px" href="prediction.html">Full model →</a></div>
-    </div>"""
+        for x in cons[3:])
+    cons_sec = f"""
+    <div class="sec-title">Constructors' Championship</div>
+    <div class="pod-grid">{cpods}</div>
+    <details class="standings-more"><summary>Show all {len(cons)} teams →</summary>{crest}</details>"""
 
     # ── Latest F1 news (scraped RSS) ────────────────────────────────────────
     news = d.get("news", [])
@@ -460,17 +532,16 @@ def build_overview(d):
       </div>
     </div>"""
 
-    body = ('<div class="page-head"><div><h1>Dashboard</h1>'
-            '<p>Live 2026 Formula 1 season overview — standings, the next Grand Prix, '
-            'the model\'s pick, plus latest news and reliability.</p></div></div>'
-            + hero + kpis + cols + news_inc)
+    body = (hero + lead + drivers_sec + cons_sec + news_inc)
     cd_data = {"target": nr["date"] + "T" + (sched and "00:00:00") }
     # find next race time from schedule
     nr_full = next((r for r in sched if r["round"] == nr["round"]), None)
     iso = nr["date"] + "T" + ((nr_full or {}).get("time") or "13:00:00Z").replace("Z", "+00:00")
-    js = ("var T=Date.parse('%s');function tick(){var s=Math.max(0,(T-Date.now())/1000);"
+    js = ("var T=Date.parse('%s');function tick(){var c=document.getElementById('cd');if(!c)return;"
+          "var s=(T-Date.now())/1000;"
+          "if(s<=0){c.innerHTML='<div class=\\'cd-live\\'>RACE WEEKEND UNDERWAY</div>';return;}"
           "var dd=Math.floor(s/86400),h=Math.floor(s%%86400/3600),m=Math.floor(s%%3600/60),"
-          "ss=Math.floor(s%%60);var c=document.getElementById('cd');if(!c)return;"
+          "ss=Math.floor(s%%60);"
           "c.innerHTML=[['Days',dd],['Hrs',h],['Min',m],['Sec',ss]].map(function(x){"
           "return '<div class=\\'cd-cell\\'><div class=\\'v\\'>'+x[1]+'</div>"
           "<div class=\\'l\\'>'+x[0]+'</div></div>'}).join('');}tick();setInterval(tick,1000);"

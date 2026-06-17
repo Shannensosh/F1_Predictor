@@ -18,50 +18,106 @@
   <nav class="tabs"><a href="index.html" class="active">Overview</a><a href="live-timing.html">Live Timing</a><a href="schedule.html">Schedule</a><a href="results.html">Results</a><a href="drivers.html">Drivers</a><a href="driver-stats.html">Stats</a><a href="prediction.html">Prediction</a></nav>
 </div></header>
 <main><div class="wrap">
-<div class="page-head"><div><h1>Dashboard</h1><p>Live 2026 Formula 1 season overview — standings, the next Grand Prix, the model's pick, plus latest news and reliability.</p></div></div>
-    <div class="card glow card-pad" style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
-      <div>
-        <div class="caps">Next Grand Prix · Round 7 of 22</div>
-        <h1 style="font-size:34px;font-weight:800;margin:8px 0 4px">🇪🇸 Barcelona Grand Prix</h1>
-        <div class="muted">Circuit de Barcelona-Catalunya · Spain · 2026-06-14</div>
-        <div class="flex gap8 wrap-f" style="margin-top:14px">
-          <span class="chip lime">DF 78</span>
+
+    <section class="hero-race">
+      <svg class="hero-track" viewBox="0 0 440 300" preserveAspectRatio="xMidYMid meet"><path d="M299.2,136.5L263.5,178.9L243.8,202.6L223.4,226.8L201.9,252.6L194.6,261.3L192.2,263.3L190.1,264.6L188.3,265.3L185.1,265.6L182.1,265.4L179.9,265.0L177.8,264.1L170.4,260.6L168.1,259.8L163.9,259.1L160.5,259.1L155.7,259.9L152.9,261.2L132.4,272.7L129.5,273.8L126.6,274.6L122.6,275.6L118.9,276.0L115.6,276.0L112.1,275.9L108.1,275.5L104.3,274.5L99.6,272.8L97.2,271.5L95.0,270.1L93.1,268.7L87.8,263.6L85.2,259.6L83.4,255.2L82.9,252.1L82.4,248.3L82.6,244.4L83.3,240.2L85.6,233.6L88.0,228.2L90.6,224.0L93.4,220.7L129.1,178.3L131.2,176.8L134.2,175.5L139.7,174.5L143.3,174.8L146.1,175.4L149.4,176.8L153.2,179.1L155.5,181.1L158.4,185.4L159.4,188.6L159.7,193.7L159.5,196.7L158.5,200.1L156.5,203.4L153.0,208.5L127.1,238.8L126.4,240.8L126.3,242.6L127.0,244.8L128.2,246.2L129.5,247.5L131.5,248.5L134.1,249.2L136.1,249.5L139.3,249.0L140.8,248.5L179.7,235.4L185.1,232.9L190.5,229.8L195.9,226.0L199.7,222.5L215.2,204.3L216.9,201.6L217.6,199.7L216.9,196.8L215.0,194.1L211.9,192.0L204.8,188.8L201.0,186.5L198.9,184.7L196.8,182.4L195.6,180.9L185.9,163.5L174.8,144.0L174.0,140.6L174.0,137.2L174.4,134.5L175.1,132.0L177.3,129.0L179.0,127.0L182.5,124.1L186.1,122.0L309.9,74.5L314.2,72.6L316.5,70.8L317.6,69.1L317.9,67.0L317.0,64.6L315.5,62.8L313.4,61.3L310.4,59.5L305.5,57.9L302.4,57.3L298.2,56.9L294.6,56.8L290.9,57.0L286.9,57.7L281.4,59.7L277.6,61.4L272.3,64.9L267.0,67.7L263.4,68.9L257.8,69.2L254.5,68.7L250.5,67.1L247.3,65.1L245.3,62.8L243.7,60.2L243.2,57.3L243.1,55.9L244.2,52.1L246.1,49.4L249.2,47.2L278.7,29.0L281.6,27.1L285.3,25.5L288.6,24.6L293.3,24.1L297.8,24.0L302.0,24.6L305.5,25.7L312.4,29.1L320.2,32.8L326.9,36.3L331.3,38.2L346.0,45.1L349.5,47.0L351.7,48.8L353.8,50.8L355.4,53.2L356.8,56.3L357.5,59.3L357.6,63.5L356.8,67.3L352.7,73.3L299.2,136.5Z"/></svg>
+      <div class="hero-inner">
+        <div class="hero-eyebrow"><span class="chip lime">ROUND 7 / 22</span>
+          <span class="caps" style="margin:0">2026 Season · Next Up</span></div>
+        <div class="hero-flag">🇪🇸</div>
+        <h1 class="hero-title">Barcelona<br><span style="-webkit-text-stroke:1px #fff;color:transparent">Grand Prix</span></h1>
+        <div class="hero-sub">Circuit de Barcelona-Catalunya · Spain · 14 Jun 2026</div>
+        <div class="hero-chips">
+          <span class="chip">Permanent</span>
+          <span class="chip">DF 78</span>
           <span class="chip">PWR 50</span>
-          <span class="chip">TYRE 82</span>
-          <span class="chip dim">Permanent</span>
+          <span class="chip">Tyre 82</span>
+          <span class="chip dim">2 DRS · 14 turns</span>
         </div>
-        <div style="margin-top:18px" class="flex gap12 wrap-f">
-          <a class="btn primary" href="prediction.html">View race prediction →</a>
-          <a class="btn" href="live-timing.html">Live timing</a>
+        <div class="hero-cta">
+          <a class="btn primary" href="prediction.html">Race-day prediction →</a>
+          <a class="btn" href="live-timing.html">Watch replay</a>
+          <a class="btn" href="schedule.html">Circuit map</a>
         </div>
       </div>
-      <div>
+      <div class="hero-side">
         <div class="caps" style="margin-bottom:8px">Lights out in</div>
         <div class="countdown" id="cd"></div>
       </div>
-    </div>
-    <div class="grid g4" style="margin-top:14px">
-      <div class="card kpi"><span class="k-label">Championship Leader</span>
-        <span class="k-val sm">Antonelli</span>
-        <span class="k-sub"><span class="teamdot" style="--c:#00D7B6"></span>156 pts · 5 wins</span></div>
-      <div class="card kpi"><span class="k-label">Last Race Winner</span>
-        <span class="k-val sm">Antonelli</span>
-        <span class="k-sub">Monaco Grand Prix</span></div>
-      <div class="card kpi"><span class="k-label">Season Progress</span>
-        <span class="k-val">6<span class="muted" style="font-size:16px">/22</span></span>
-        <span class="k-sub">rounds completed</span></div>
-      <div class="card kpi glow"><span class="k-label">Predicted 2026 Champion</span>
-        <span class="k-val sm lime">Antonelli</span>
-        <span class="k-sub">67% title probability</span></div>
-    </div>
-    <div class="grid g3" style="margin-top:20px">
-      <div class="card"><div class="sec-title" style="margin-top:0">Drivers' Championship</div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-1">1</span><span><span class="teamdot" style="--c:#00D7B6"></span>A. Antonelli</span><span class="mono">156</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-2">2</span><span><span class="teamdot" style="--c:#E8002D"></span>L. Hamilton</span><span class="mono">90</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-3">3</span><span><span class="teamdot" style="--c:#00D7B6"></span>G. Russell</span><span class="mono">88</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">4</span><span><span class="teamdot" style="--c:#E8002D"></span>C. Leclerc</span><span class="mono">75</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">5</span><span><span class="teamdot" style="--c:#FF8000"></span>O. Piastri</span><span class="mono">60</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">6</span><span><span class="teamdot" style="--c:#FF8000"></span>L. Norris</span><span class="mono">58</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">7</span><span><span class="teamdot" style="--c:#3671C6"></span>M. Verstappen</span><span class="mono">43</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">8</span><span><span class="teamdot" style="--c:#3671C6"></span>I. Hadjar</span><span class="mono">29</span></div>
-        <a class="muted" style="font-size:12px;display:inline-block;margin-top:10px" href="results.html#standings">Full standings →</a></div>
-      <div class="card"><div class="sec-title" style="margin-top:0">Constructors</div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-1">1</span><span><span class="teamdot" style="--c:#00D7B6"></span>Mercedes</span><span class="mono">244</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-2">2</span><span><span class="teamdot" style="--c:#E8002D"></span>Ferrari</span><span class="mono">165</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-3">3</span><span><span class="teamdot" style="--c:#FF8000"></span>McLaren</span><span class="mono">118</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">4</span><span><span class="teamdot" style="--c:#3671C6"></span>Red Bull</span><span class="mono">72</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">5</span><span><span class="teamdot" style="--c:#0093CC"></span>Alpine F1 Team</span><span class="mono">41</span></div><div class="row" style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-2)"><span class="pos pos-0">6</span><span><span class="teamdot" style="--c:#6692FF"></span>RB F1 Team</span><span class="mono">39</span></div>
-        <a class="muted" style="font-size:12px;display:inline-block;margin-top:10px" href="results.html#standings">Full table →</a></div>
-      <div class="card"><div class="sec-title" style="margin-top:0">Barcelona Grand Prix — Win %</div><div class="barrow"><span class="blabel">Antonelli</span><span class="bar "><i style="width:100%"></i></span><span class="bval">28%</span></div><div class="barrow"><span class="blabel">Russell</span><span class="bar "><i style="width:74%"></i></span><span class="bval">20%</span></div><div class="barrow"><span class="blabel">Piastri</span><span class="bar "><i style="width:38%"></i></span><span class="bval">10%</span></div><div class="barrow"><span class="blabel">Leclerc</span><span class="bar "><i style="width:36%"></i></span><span class="bval">10%</span></div><div class="barrow"><span class="blabel">Norris</span><span class="bar "><i style="width:35%"></i></span><span class="bval">10%</span></div>
-        <a class="muted" style="font-size:12px;display:inline-block;margin-top:10px" href="prediction.html">Full model →</a></div>
-    </div>
+    </section><div class="lead-grid">
+        <div class="lead-card" style="--c:#00D7B6">
+          <img class="shot" src="https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/3col/image.png" alt="" loading="lazy" onerror="this.remove()">
+          <div class="lead-num">156</div>
+          <div class="lead-top">Championship Leader <span class="delta up">▲ LEADS</span></div>
+          <div class="lead-name">🇮🇹 Antonelli</div>
+          <div class="lead-meta">Mercedes · 5 wins this season</div>
+          <div class="lead-stat">156 <span>PTS</span></div>
+        </div>
+        <div class="lead-card" style="--c:#00D7B6">
+          <img class="shot" src="https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/3col/image.png" alt="" loading="lazy" onerror="this.remove()">
+          <div class="lead-num">P1</div>
+          <div class="lead-top">Last Winner · Monaco</div>
+          <div class="lead-name">🇮🇹 Antonelli</div>
+          <div class="lead-meta">Mercedes</div>
+          <div class="lead-stat">5 <span>WINS '26</span></div>
+        </div>
+        <div class="lead-card" style="--c:#00D7B6">
+          <img class="shot" src="https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/3col/image.png" alt="" loading="lazy" onerror="this.remove()">
+          <div class="lead-num">62<span style="font-size:32px">%</span></div>
+          <div class="lead-top">Predicted 2026 Champion</div>
+          <div class="lead-name">🇮🇹 Antonelli</div>
+          <div class="lead-meta">Mercedes · model pick</div>
+          <div class="lead-stat">62.5<span>% TITLE</span></div>
+        </div></div>
+    <div class="sec-title">Drivers' Championship</div>
+    <div class="pod-grid">
+        <div class="pod-card p1" style="--c:#00D7B6">
+          <div class="pod-pos">1</div>
+          <img class="shot" src="https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/3col/image.png" alt="" loading="lazy" onerror="this.remove()">
+          <div class="pod-name">🇮🇹 Antonelli</div>
+          <div class="pod-team"><span class="teamdot" style="--c:#00D7B6"></span>Mercedes · 5 wins</div>
+          <div class="pod-pts">156 <span>PTS</span></div>
+        </div>
+        <div class="pod-card p2" style="--c:#E8002D">
+          <div class="pod-pos">2</div>
+          <img class="shot" src="https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/L/LEWHAM01_Lewis_Hamilton/lewham01.png.transform/3col/image.png" alt="" loading="lazy" onerror="this.remove()">
+          <div class="pod-name">🇬🇧 Hamilton</div>
+          <div class="pod-team"><span class="teamdot" style="--c:#E8002D"></span>Ferrari · 1 wins</div>
+          <div class="pod-pts">115 <span>PTS</span></div>
+        </div>
+        <div class="pod-card p3" style="--c:#00D7B6">
+          <div class="pod-pos">3</div>
+          <img class="shot" src="https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/G/GEORUS01_George_Russell/georus01.png.transform/3col/image.png" alt="" loading="lazy" onerror="this.remove()">
+          <div class="pod-name">🇬🇧 Russell</div>
+          <div class="pod-team"><span class="teamdot" style="--c:#00D7B6"></span>Mercedes · 1 wins</div>
+          <div class="pod-pts">106 <span>PTS</span></div>
+        </div></div>
+    <details class="standings-more"><summary>Show all 22 drivers · standings &amp; results →</summary>
+      <div class="srow"><span class="pos">4</span><span class="teamdot" style="--c:#E8002D"></span><span><b>LEC</b> Leclerc <span class="muted" style="font-size:11px">Ferrari</span></span><span class="mono">75</span></div><div class="srow"><span class="pos">5</span><span class="teamdot" style="--c:#FF8000"></span><span><b>NOR</b> Norris <span class="muted" style="font-size:11px">McLaren</span></span><span class="mono">73</span></div><div class="srow"><span class="pos">6</span><span class="teamdot" style="--c:#FF8000"></span><span><b>PIA</b> Piastri <span class="muted" style="font-size:11px">McLaren</span></span><span class="mono">68</span></div><div class="srow"><span class="pos">7</span><span class="teamdot" style="--c:#3671C6"></span><span><b>VER</b> Verstappen <span class="muted" style="font-size:11px">Red Bull</span></span><span class="mono">55</span></div><div class="srow"><span class="pos">8</span><span class="teamdot" style="--c:#0093CC"></span><span><b>GAS</b> Gasly <span class="muted" style="font-size:11px">Alpine F1 Team</span></span><span class="mono">41</span></div><div class="srow"><span class="pos">9</span><span class="teamdot" style="--c:#3671C6"></span><span><b>HAD</b> Hadjar <span class="muted" style="font-size:11px">Red Bull</span></span><span class="mono">34</span></div><div class="srow"><span class="pos">10</span><span class="teamdot" style="--c:#6692FF"></span><span><b>LAW</b> Lawson <span class="muted" style="font-size:11px">RB F1 Team</span></span><span class="mono">28</span></div><div class="srow"><span class="pos">11</span><span class="teamdot" style="--c:#B6BABD"></span><span><b>BEA</b> Bearman <span class="muted" style="font-size:11px">Haas F1 Team</span></span><span class="mono">18</span></div><div class="srow"><span class="pos">12</span><span class="teamdot" style="--c:#0093CC"></span><span><b>COL</b> Colapinto <span class="muted" style="font-size:11px">Alpine F1 Team</span></span><span class="mono">16</span></div><div class="srow"><span class="pos">13</span><span class="teamdot" style="--c:#6692FF"></span><span><b>LIN</b> Lindblad <span class="muted" style="font-size:11px">RB F1 Team</span></span><span class="mono">13</span></div><div class="srow"><span class="pos">14</span><span class="teamdot" style="--c:#64C4FF"></span><span><b>SAI</b> Sainz <span class="muted" style="font-size:11px">Williams</span></span><span class="mono">6</span></div><div class="srow"><span class="pos">15</span><span class="teamdot" style="--c:#64C4FF"></span><span><b>ALB</b> Albon <span class="muted" style="font-size:11px">Williams</span></span><span class="mono">5</span></div><div class="srow"><span class="pos">16</span><span class="teamdot" style="--c:#B6BABD"></span><span><b>OCO</b> Ocon <span class="muted" style="font-size:11px">Haas F1 Team</span></span><span class="mono">3</span></div><div class="srow"><span class="pos">17</span><span class="teamdot" style="--c:#00C752"></span><span><b>BOR</b> Bortoleto <span class="muted" style="font-size:11px">Audi</span></span><span class="mono">2</span></div><div class="srow"><span class="pos">18</span><span class="teamdot" style="--c:#229971"></span><span><b>ALO</b> Alonso <span class="muted" style="font-size:11px">Aston Martin</span></span><span class="mono">1</span></div><div class="srow"><span class="pos">19</span><span class="teamdot" style="--c:#00C752"></span><span><b>HUL</b> Hülkenberg <span class="muted" style="font-size:11px">Audi</span></span><span class="mono">0</span></div><div class="srow"><span class="pos">20</span><span class="teamdot" style="--c:#C8A24A"></span><span><b>BOT</b> Bottas <span class="muted" style="font-size:11px">Cadillac F1 Team</span></span><span class="mono">0</span></div><div class="srow"><span class="pos">21</span><span class="teamdot" style="--c:#C8A24A"></span><span><b>PER</b> Pérez <span class="muted" style="font-size:11px">Cadillac F1 Team</span></span><span class="mono">0</span></div><div class="srow"><span class="pos">22</span><span class="teamdot" style="--c:#229971"></span><span><b>STR</b> Stroll <span class="muted" style="font-size:11px">Aston Martin</span></span><span class="mono">0</span></div></details>
+    <div class="sec-title">Constructors' Championship</div>
+    <div class="pod-grid">
+        <div class="pod-card p1" style="--c:#00D7B6">
+          <div class="pod-pos">1</div>
+          <div class="pod-name" style="margin-top:6px">Mercedes</div>
+          <div class="pod-team">6 wins</div>
+          <div class="pod-pts" style="margin-top:auto">244 <span>PTS</span></div>
+          <div style="position:absolute;right:0;top:0;bottom:0;width:8px;background:#00D7B6"></div>
+        </div>
+        <div class="pod-card p2" style="--c:#E8002D">
+          <div class="pod-pos">2</div>
+          <div class="pod-name" style="margin-top:6px">Ferrari</div>
+          <div class="pod-team">0 wins</div>
+          <div class="pod-pts" style="margin-top:auto">165 <span>PTS</span></div>
+          <div style="position:absolute;right:0;top:0;bottom:0;width:8px;background:#E8002D"></div>
+        </div>
+        <div class="pod-card p3" style="--c:#FF8000">
+          <div class="pod-pos">3</div>
+          <div class="pod-name" style="margin-top:6px">McLaren</div>
+          <div class="pod-team">0 wins</div>
+          <div class="pod-pts" style="margin-top:auto">118 <span>PTS</span></div>
+          <div style="position:absolute;right:0;top:0;bottom:0;width:8px;background:#FF8000"></div>
+        </div></div>
+    <details class="standings-more"><summary>Show all 11 teams →</summary><div class="srow"><span class="pos">4</span><span class="teamdot" style="--c:#3671C6"></span><span><b>Red Bull</b></span><span class="mono">72</span></div><div class="srow"><span class="pos">5</span><span class="teamdot" style="--c:#0093CC"></span><span><b>Alpine F1 Team</b></span><span class="mono">41</span></div><div class="srow"><span class="pos">6</span><span class="teamdot" style="--c:#6692FF"></span><span><b>RB F1 Team</b></span><span class="mono">39</span></div><div class="srow"><span class="pos">7</span><span class="teamdot" style="--c:#B6BABD"></span><span><b>Haas F1 Team</b></span><span class="mono">21</span></div><div class="srow"><span class="pos">8</span><span class="teamdot" style="--c:#64C4FF"></span><span><b>Williams</b></span><span class="mono">11</span></div><div class="srow"><span class="pos">9</span><span class="teamdot" style="--c:#00C752"></span><span><b>Audi</b></span><span class="mono">2</span></div><div class="srow"><span class="pos">10</span><span class="teamdot" style="--c:#229971"></span><span><b>Aston Martin</b></span><span class="mono">1</span></div><div class="srow"><span class="pos">11</span><span class="teamdot" style="--c:#C8A24A"></span><span><b>Cadillac F1 Team</b></span><span class="mono">0</span></div></details>
     <div class="grid g2" style="margin-top:20px;align-items:start">
       <div class="card"><div class="sec-title" style="margin-top:0">Latest F1 News</div>
         <a class="ev" href="https://www.motorsport.com/f1/news/five-things-to-look-out-for-at-the-f1-barcelona-gp/10828871/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">Five things to look out for at the F1 Barcelona GP</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a><a class="ev" href="https://www.motorsport.com/f1/news/aston-martin-our-f1-chassis-is-fifth-fastest-at-some-tracks/10828533/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">Aston Martin claims F1 chassis is “fifth-fastest” at some tracks</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a><a class="ev" href="https://www.motorsport.com/wec/news/all-former-formula-1-drivers-on-the-2026-le-mans-24-hours-grid/10828816/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">Every former Formula 1 driver on the 2026 Le Mans 24 Hours grid</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a><a class="ev" href="https://www.motorsport.com/f1/news/we-have-not-been-fast-enough-why-mclaren-sees-monaco-as-a-reality-check/10828561/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">“We have not been fast enough” – Why McLaren sees Monaco as a reality check</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a><a class="ev" href="https://www.motorsport.com/f1/news/alex-albon-to-run-nigel-mansell-tribute-at-f1-barcelona-gp/10828786/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">Alex Albon to run Nigel Mansell tribute at F1 Barcelona GP</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a><a class="ev" href="https://www.motorsport.com/f1/news/williams-blockade-should-team-tactics-be-banned-in-monaco/10828752/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">Williams blockade: Should F1 team tactics be banned in Monaco?</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a><a class="ev" href="https://www.motorsport.com/f1/news/audi-to-field-alpine-reserve-paul-aaron-in-two-formula-1-fp1-outings/10828745/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">Audi to field Alpine F1 reserve Paul Aron in two practice outings</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a><a class="ev" href="https://www.motorsport.com/f1/news/kimi-antonelli-hits-back-at-george-russells-mind-games-im-still-the-underdog/10828644/?utm_source=RSS&amp;utm_medium=referral&amp;utm_campaign=RSS-F1&amp;utm_term=News&amp;utm_content=www" target="_blank" rel="noopener noreferrer" style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none"><div style="font-size:13px;line-height:1.35">Kimi Antonelli dismisses George Russell’s mind games: “I’m still the underdog”</div><div class="muted mono" style="font-size:10px;margin-top:3px">Wed, 10 Jun 2026 · motorsport.com ↗</div></a></div>
@@ -78,10 +134,10 @@
 <footer><div class="wrap">
   Data: <span class="mono">Jolpica/Ergast</span> + <span class="mono">OpenF1</span> ·
   PITWALL · Educational / entertainment only — not affiliated with Formula 1.
-  Built 2026-06-12.
+  Built 2026-06-17.
 </div></footer>
 
 <script src="assets/app.js"></script>
-<script>var T=Date.parse('2026-06-14T13:00:00+00:00');function tick(){var s=Math.max(0,(T-Date.now())/1000);var dd=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),ss=Math.floor(s%60);var c=document.getElementById('cd');if(!c)return;c.innerHTML=[['Days',dd],['Hrs',h],['Min',m],['Sec',ss]].map(function(x){return '<div class=\'cd-cell\'><div class=\'v\'>'+x[1]+'</div><div class=\'l\'>'+x[0]+'</div></div>'}).join('');}tick();setInterval(tick,1000);</script>
+<script>var T=Date.parse('2026-06-14T13:00:00+00:00');function tick(){var c=document.getElementById('cd');if(!c)return;var s=(T-Date.now())/1000;if(s<=0){c.innerHTML='<div class=\'cd-live\'>RACE WEEKEND UNDERWAY</div>';return;}var dd=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),ss=Math.floor(s%60);c.innerHTML=[['Days',dd],['Hrs',h],['Min',m],['Sec',ss]].map(function(x){return '<div class=\'cd-cell\'><div class=\'v\'>'+x[1]+'</div><div class=\'l\'>'+x[0]+'</div></div>'}).join('');}tick();setInterval(tick,1000);</script>
 </body>
 </html>

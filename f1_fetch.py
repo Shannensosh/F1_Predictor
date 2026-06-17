@@ -478,18 +478,26 @@ def build_sample_race():
 # Driver index (2026 grid) with team colours from OpenF1 where available
 # ─────────────────────────────────────────────────────────────────────────────
 def build_driver_index(dstand_2026):
-    """Merge 2026 standings with OpenF1 team colours (by driver number)."""
-    colour_by_num = {}
+    """Merge 2026 standings with OpenF1 team colours + official headshots
+    (by driver number)."""
+    colour_by_num, photo_by_num = {}, {}
     sessions = _openf1("sessions", year=LIVE_SEASON, session_name="Race")
     if sessions:
-        sk = sessions[0]["session_key"]
+        sk = sessions[-1]["session_key"]
         for d in _openf1("drivers", session_key=sk):
+            num = str(d["driver_number"])
             if d.get("team_colour"):
-                colour_by_num[str(d["driver_number"])] = "#" + d["team_colour"]
+                colour_by_num[num] = "#" + d["team_colour"]
+            hs = d.get("headshot_url")
+            if hs:
+                # request a larger crop than the default 1col thumbnail
+                photo_by_num[num] = hs.replace("/1col/", "/3col/")
     out = []
     for s in dstand_2026:
-        out.append({**s, "colour": colour_by_num.get(str(s.get("num")), None)})
-    return out, colour_by_num
+        num = str(s.get("num"))
+        out.append({**s, "colour": colour_by_num.get(num),
+                    "photo": photo_by_num.get(num)})
+    return out, colour_by_num, photo_by_num
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -637,9 +645,9 @@ def fetch_all():
     print("» Standings (2026)")
     dstand = fetch_driver_standings(LIVE_SEASON)
     cstand = fetch_constructor_standings(LIVE_SEASON)
-    drivers_idx, colour_by_num = build_driver_index(dstand)
+    drivers_idx, colour_by_num, photo_by_num = build_driver_index(dstand)
     _save("standings.json", {"drivers": dstand, "constructors": cstand,
-                              "colours": colour_by_num})
+                              "colours": colour_by_num, "photos": photo_by_num})
     _save("drivers.json", drivers_idx)
 
     print("» Sample race telemetry (OpenF1)")
