@@ -490,8 +490,8 @@ def build_driver_index(dstand_2026):
                 colour_by_num[num] = "#" + d["team_colour"]
             hs = d.get("headshot_url")
             if hs:
-                # request a larger crop than the default 1col thumbnail
-                photo_by_num[num] = hs.replace("/1col/", "/3col/")
+                # request a high-res crop (997×997) instead of the 1col thumbnail
+                photo_by_num[num] = hs.replace("/1col/", "/9col/")
     out = []
     for s in dstand_2026:
         num = str(s.get("num"))

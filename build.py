@@ -489,38 +489,35 @@ def build_overview(d):
         u = photo(num)
         return f'<img class="shot" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
 
-    def lead_card(num, cid, label, delta, name, nat, stat_big, stat_unit, meta):
+    def lead_card(num, cid, label, delta, big, unit, name, nat):
         delta_html = f'<span class="delta {delta[0]}">{delta[1]}</span>' if delta else ""
         return f"""
         <div class="lead-card" style="--c:{team_color(cid)}">
           <div class="lead-photo">{shot_img(num)}</div>
           <div class="lead-banner">
             <div class="lead-top">{esc(label)} {delta_html}</div>
-            <div class="lead-name">{flag(nat)} {esc(name)}</div>
-            <div class="lead-meta">{esc(meta)}</div>
-            <div class="lead-stat">{stat_big} <span>{esc(stat_unit)}</span></div>
+            <div class="lead-big">{big}<span class="unit">{esc(unit)}</span></div>
           </div>
+          <div class="lead-foot"><span class="fl">{flag(nat)}</span> <span>{esc(name)}</span></div>
         </div>"""
 
     cards = []
     if leader:
         cards.append(lead_card(leader.get("num"), leader["constructorId"], "Championship Leader",
-                               ("up", "▲ LEADS"), leader["family"], leader["nationality"],
-                               f'{leader["points"]:.0f}', "PTS",
-                               f'{leader["constructor"]} · {leader["wins"]} wins'))
+                               ("up", "▲"), f'{leader["points"]:.0f}', "POINTS",
+                               f'{leader["given"]} {leader["family"]}', leader["nationality"]))
     if last_win:
         lw = next((x for x in dr if x["driverId"] == last_win["driverId"]), last_win)
         lw_wins = sum(1 for r in results.get("2026", []) for res in r["results"]
                       if res["driverId"] == last_win["driverId"] and res["pos"] == 1)
         cards.append(lead_card(lw.get("num"), last_win["constructorId"],
                                f'Last Winner · {last["raceName"].replace(" Grand Prix","") if last else ""}',
-                               ("up", "P1"), last_win["family"], last_win.get("nationality"),
-                               f'{lw_wins}', "WINS '26", last_win["constructor"]))
+                               ("up", "▲"), f'{lw_wins}', "WINS '26",
+                               f'{last_win["given"]} {last_win["family"]}', last_win.get("nationality")))
     pc_d = next((x for x in dr if x["driverId"] == pred_champ["driverId"]), None)
-    cards.append(lead_card(pred_champ.get("num"), pred_champ["constructorId"], "Predicted 2026 Champion",
-                           None, pred_champ["name"].split()[-1], pc_d["nationality"] if pc_d else None,
-                           f'{pred_champ["title_pct"]:.0f}<span class="pct">%</span>', "TITLE PROB.",
-                           f'{pred_champ["constructor"]} · model pick'))
+    cards.append(lead_card(pred_champ.get("num"), pred_champ["constructorId"], "Predicted Champion",
+                           None, f'{pred_champ["title_pct"]:.0f}<span class="pct">%</span>', "TITLE PROBABILITY",
+                           esc(pred_champ["name"]), pc_d["nationality"] if pc_d else None))
     lead = f'<div class="lead-grid">{"".join(cards)}</div>'
 
     # ── drivers' championship: podium top-3 + collapsible rest ──────────────

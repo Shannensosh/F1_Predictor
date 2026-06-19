@@ -127,29 +127,34 @@ nav.tabs a.active{color:#fff;background:var(--lime);font-weight:700}
   .hero-side{justify-self:start;text-align:left;margin-top:18px}.hero-side .countdown{justify-content:flex-start}
   .hero-track{width:90%;opacity:.10}}
 
-/* ── overview: driver stat cards — portrait + frosted info banner ────────── */
+/* ── overview: driver stat cards — photo + frosted banner + name strip ───── */
 .lead-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
-.lead-card{position:relative;overflow:hidden;border-radius:var(--r-lg);height:320px;
-  border:1px solid var(--outline-2);
-  background:linear-gradient(160deg,color-mix(in srgb,var(--c,#444) 78%,#0e0e14),
-            color-mix(in srgb,var(--c,#444) 30%,#0e0e14) 60%,#0e0e14)}
-.lead-photo{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;z-index:1}
-.lead-photo .shot{height:96%;width:auto;object-fit:contain;object-position:bottom center;
-  filter:drop-shadow(0 10px 22px rgba(0,0,0,.55))}
-.lead-banner{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:14px 16px 15px;
-  background:linear-gradient(0deg,rgba(10,10,14,.92) 30%,rgba(10,10,14,.55) 75%,transparent);
-  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.lead-card{position:relative;overflow:hidden;border-radius:var(--r-lg);height:380px;
+  display:flex;flex-direction:column;justify-content:flex-end;border:1px solid var(--outline-2);
+  background:linear-gradient(165deg,color-mix(in srgb,var(--c,#444) 85%,#0c0c12),
+            color-mix(in srgb,var(--c,#444) 38%,#0c0c12) 55%,#0c0c12)}
+.lead-photo{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;z-index:0}
+.lead-photo .shot{height:100%;width:auto;object-fit:contain;object-position:bottom center;
+  filter:drop-shadow(0 12px 26px rgba(0,0,0,.6))}
+.lead-banner{position:relative;z-index:2;padding:16px 18px 12px;
+  background:linear-gradient(0deg,rgba(8,8,12,.55),rgba(8,8,12,.18) 70%,transparent);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
 .lead-top{display:flex;align-items:center;gap:8px;font-family:'Titillium Web';font-weight:700;
-  font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.8)}
-.lead-name{font-family:'Titillium Web';font-weight:800;font-size:23px;color:#fff;margin-top:4px}
-.lead-meta{color:#cfcdd6;font-size:12px;margin-top:1px}
-.lead-stat{font-family:'JetBrains Mono';font-weight:700;font-size:34px;line-height:1;margin-top:8px;color:#fff}
-.lead-stat .pct{font-size:20px}
-.lead-stat span{font-size:12px;color:#cfcdd6;font-weight:500;letter-spacing:.04em}
-.delta{font-family:'JetBrains Mono';font-size:11px;font-weight:700;margin-left:auto}
+  font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.82)}
+.lead-big{font-family:'JetBrains Mono';font-weight:700;font-size:48px;line-height:1.05;
+  color:#fff;letter-spacing:-.02em;display:flex;align-items:baseline;gap:9px;
+  text-shadow:0 2px 18px rgba(0,0,0,.5)}
+.lead-big .unit{font-size:13px;font-weight:500;color:rgba(255,255,255,.5);letter-spacing:.06em}
+.lead-big .pct{font-size:30px;color:rgba(255,255,255,.7)}
+.delta{font-size:13px;font-weight:700;margin-left:auto}
 .delta.up{color:var(--green)} .delta.down{color:var(--red)}
-@media(max-width:820px){.lead-grid{grid-auto-flow:column;grid-auto-columns:80%;
-  grid-template-columns:none;overflow-x:auto}}
+.lead-foot{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
+  padding:12px 18px 15px;background:rgba(7,7,11,.95);border-top:1px solid rgba(255,255,255,.08);
+  font-family:'Titillium Web';font-weight:600;font-size:17px;color:#fff}
+.lead-foot .fl{font-size:19px;line-height:1}
+@media(max-width:820px){.lead-grid{grid-auto-flow:column;grid-auto-columns:82%;
+  grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory}
+  .lead-grid>*{scroll-snap-align:start}}
 
 /* ── centered red section headers (Ferrari editorial) ────────────────────── */
 .sec-head{text-align:center;margin:38px 0 18px}
