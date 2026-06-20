@@ -610,19 +610,21 @@ CIRCUIT_PHOTO_QUERY = {
 }
 
 
-# Per-constructor Commons search → a representative car photo (2024/25 chassis)
+# Per-constructor Commons search → a representative on-track car photo (2024 chassis)
 CONSTRUCTOR_CAR_QUERY = {
-    "ferrari": "Ferrari SF-24 2024 Formula One", "mercedes": "Mercedes W15 2024 Formula One",
-    "red_bull": "Red Bull RB20 2024", "mclaren": "McLaren MCL38 2024",
-    "aston_martin": "Aston Martin AMR24 2024", "alpine": "Alpine A524 2024",
-    "williams": "Williams FW46 2024", "rb": "RB VCARB 01 2024",
-    "haas": "Haas VF-24 2024", "audi": "Sauber C44 2024", "cadillac": "Formula One car 2024",
+    "ferrari": "FIA F1 Austria 2024 Ferrari Leclerc", "mercedes": "FIA F1 Austria 2024 Nr. 63 Russell",
+    "red_bull": "FIA F1 Austria 2024 Verstappen Red Bull", "mclaren": "FIA F1 Austria 2024 Norris McLaren",
+    "aston_martin": "FIA F1 Austria 2024 Alonso Aston Martin", "alpine": "FIA F1 Austria 2024 Alpine",
+    "williams": "FIA F1 Austria 2024 Albon Williams", "rb": "FIA F1 Austria 2024 Tsunoda RB",
+    "haas": "FIA F1 Austria 2024 Haas", "audi": "FIA F1 Austria 2024 Sauber",
+    "cadillac": "FIA F1 2024 Formula One car on track",
 }
+_CAR_BAD = ("logo", "helmet", "map", "garage", "pit", "1932", "typ ", "classic",
+            "gala", "road", "amg gt", "concept", "museum", "retro", "show car")
 
 
 def fetch_constructor_cars(constructors):
-    """One CC-licensed car photo per 2026 constructor (Commons), carried forward."""
-    import re as _re
+    """One CC-licensed on-track car photo per 2026 constructor (Commons), carried forward."""
     prev = {}
     sf = os.path.join(DATA_DIR, "standings.json")
     if os.path.exists(sf):
@@ -635,17 +637,73 @@ def fetch_constructor_cars(constructors):
         cid = c["constructorId"]
         if out.get(cid):
             continue
-        d = _commons_search(CONSTRUCTOR_CAR_QUERY.get(cid, f'{c["name"]} 2024 Formula One'))
+        d = _commons_search(CONSTRUCTOR_CAR_QUERY.get(cid, f'{c["name"]} 2024 Formula One car'))
         pages = sorted(d.get("query", {}).get("pages", {}).values(),
                        key=lambda p: -(p.get("imageinfo", [{}])[0].get("width", 0)))
         for p in pages:
             ii = (p.get("imageinfo") or [{}])[0]
             w, h, t = ii.get("width", 0), ii.get("height", 0), p.get("title", "")
             if w >= 1200 and w > h and t.lower().endswith((".jpg", ".jpeg")) \
-                    and not any(k in t.lower() for k in ("logo", "helmet", "map", "garage", "pit")):
+                    and not any(k in t.lower() for k in _CAR_BAD):
                 out[cid] = ii.get("thumburl"); break
         time.sleep(0.15)
     return out
+
+
+# Per-driver Commons search → a free landscape photo of the driver
+DRIVER_PHOTO_QUERY = {
+    "antonelli": "Andrea Kimi Antonelli", "hamilton": "Lewis Hamilton 2023 Mercedes driver",
+    "russell": "George Russell 2023 driver", "leclerc": "Charles Leclerc 2023 driver",
+    "norris": "Lando Norris 2023 driver", "piastri": "Oscar Piastri 2023 driver",
+    "max_verstappen": "Max Verstappen 2023 driver", "verstappen": "Max Verstappen 2023 driver",
+    "gasly": "Pierre Gasly 2023 driver", "alonso": "Fernando Alonso 2023 driver",
+    "sainz": "Carlos Sainz 2023 driver", "hulkenberg": "Nico Hülkenberg 2023 driver",
+    "stroll": "Lance Stroll 2023 driver", "tsunoda": "Yuki Tsunoda 2023 driver",
+    "albon": "Alexander Albon 2023 driver", "ocon": "Esteban Ocon 2023 driver",
+    "bearman": "Oliver Bearman driver", "hadjar": "Isack Hadjar", "lawson": "Liam Lawson driver",
+    "colapinto": "Franco Colapinto driver", "bortoleto": "Gabriel Bortoleto", "perez": "Sergio Pérez 2023 driver",
+}
+_DRV_BAD = ("helmet", "logo", "map", "steering", "trophy", "grid ahead", "podium",
+            "nr.", "nr ", " no.", "car", "garage", "pit lane")
+
+
+def fetch_driver_photos(drivers):
+    """One CC-licensed landscape photo of each driver (Commons), carried forward.
+    Two-pass: prefer a solo person shot (surname in title, no car keywords),
+    then relax to any landscape with the surname."""
+    prev = {}
+    sf = os.path.join(DATA_DIR, "standings.json")
+    if os.path.exists(sf):
+        try:
+            prev = {k: v for k, v in (json.load(open(sf)).get("driver_photos") or {}).items() if v}
+        except Exception:
+            pass
+    out = dict(prev)
+    for d in drivers:
+        did = d["driverId"]
+        if out.get(did):
+            continue
+        fam = d["family"].split()[-1].lower()
+        res = _commons_search(DRIVER_PHOTO_QUERY.get(did, f'{d["given"]} {d["family"]} driver'))
+        pages = sorted(res.get("query", {}).get("pages", {}).values(),
+                       key=lambda p: -(p.get("imageinfo", [{}])[0].get("width", 0)))
+        def pick(strict):
+            for p in pages:
+                ii = (p.get("imageinfo") or [{}])[0]
+                w, h, t = ii.get("width", 0), ii.get("height", 0), p.get("title", "").lower()
+                if w < 1000 or w < h or not t.endswith((".jpg", ".jpeg")):
+                    continue
+                if fam not in t:
+                    continue
+                if strict and any(k in t for k in _DRV_BAD):
+                    continue
+                if not strict and any(k in t for k in ("helmet", "logo", "map")):
+                    continue
+                return ii.get("thumburl")
+            return None
+        out[did] = pick(True) or pick(False)
+        time.sleep(0.15)
+    return {k: v for k, v in out.items() if v}
 
 
 def _commons_search(query, limit=18):
@@ -757,9 +815,11 @@ def fetch_all():
     drivers_idx, colour_by_num, photo_by_num = build_driver_index(dstand)
     print("   · constructor car photos")
     cars = fetch_constructor_cars(cstand)
+    print("   · driver photos (Commons)")
+    driver_photos = fetch_driver_photos(dstand)
     _save("standings.json", {"drivers": dstand, "constructors": cstand,
                               "colours": colour_by_num, "photos": photo_by_num,
-                              "cars": cars})
+                              "cars": cars, "driver_photos": driver_photos})
     _save("drivers.json", drivers_idx)
 
     print("» Sample race telemetry (OpenF1)")

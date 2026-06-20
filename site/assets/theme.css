@@ -162,7 +162,6 @@ nav.tabs a.active{color:#fff;background:var(--lime);font-weight:700}
   border:1px solid var(--outline-2);background:#0c0c12}
 .fin-card.lead{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c,#444) 55%,transparent)}
 .fin-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center right;z-index:0}
-.fin-card.driver .fin-bg{object-position:top right;height:104%}
 .fin-scrim{position:absolute;inset:0;z-index:1;background:
   linear-gradient(90deg,rgba(8,8,12,.94) 0%,rgba(8,8,12,.62) 48%,rgba(8,8,12,.15) 100%),
   linear-gradient(0deg,color-mix(in srgb,var(--c,#444) 35%,transparent),transparent 60%)}

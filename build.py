@@ -521,12 +521,14 @@ def build_overview(d):
     lead = f'<div class="lead-grid">{"".join(cards)}</div>'
 
     cars = standings.get("cars", {})
+    dphotos = standings.get("driver_photos", {})
     PLACE = {1: "1ST PLACE", 2: "2ND PLACE", 3: "3RD PLACE"}
 
     # ── drivers' championship: FINALISTS-style image-back cards + rest ───────
     def fin_driver(x):
-        u = photo(x.get("num"))
-        bg = f'<img class="fin-bg shot" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
+        # free CC photo of the driver fills the card (falls back to headshot)
+        u = dphotos.get(x["driverId"]) or photo(x.get("num"))
+        bg = f'<img class="fin-bg" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
         return f"""
         <div class="fin-card driver{' lead' if x['pos']==1 else ''}" style="--c:{team_color(x['constructorId'])}">
           {bg}<div class="fin-scrim"></div><div class="fin-bar"></div>
@@ -572,12 +574,10 @@ def build_overview(d):
     <div class="fin-grid">{"".join(fin_team(x) for x in cons[:3])}</div>
     <details class="standings-more"><summary>Show all {len(cons)} teams →</summary>{crest}</details>"""
 
-    # ── one photo-led news feed (latest news first, then 2026 retirements) ──
+    # ── one photo-led news feed (latest F1 headlines, most recent first) ────
     news = d.get("news", [])
-    inc = d.get("incidents", {"recent": []})
-    ticon = {"crash": "💥", "mech": "🔧", "other": "⚠️"}
     feed = []
-    for n in news[:12]:
+    for n in news[:14]:
         img = n.get("image")
         imgdiv = (f'<div class="nf-img" style="background-image:url(\'{esc(img)}\')"></div>'
                   if img else '<div class="nf-img nf-noimg"><span>PITWALL</span></div>')
@@ -586,16 +586,8 @@ def build_overview(d):
             f'{imgdiv}<div class="nf-body"><span class="nf-cat">F1 News</span>'
             f'<div class="nf-title">{esc(n["title"])}</div>'
             f'<div class="nf-date">{esc((n.get("date") or "")[:16])} · motorsport.com ↗</div></div></a>')
-    for r in inc.get("recent", [])[:8]:
-        tcls = "crash" if r["type"] == "crash" else "mech" if r["type"] == "mech" else "other"
-        feed.append(
-            f'<div class="nf-card inc">'
-            f'<div class="nf-img inc-{tcls}"><span>{ticon.get(r["type"],"⚠️")}</span></div>'
-            f'<div class="nf-body"><span class="nf-cat red">Retirement · R{r["round"]}</span>'
-            f'<div class="nf-title">{esc(r["code"])} {esc(r["driver"])} — {esc(r.get("human", r["status"]))}</div>'
-            f'<div class="nf-date">{esc(r["raceName"].replace(" Grand Prix",""))} Grand Prix</div></div></div>')
     news_feed = (f'<div class="sec-head"><h2>From the Paddock</h2>'
-                 f'<div class="sec-sub">Latest F1 headlines &amp; 2026 retirements · scroll for more →</div></div>'
+                 f'<div class="sec-sub">Latest F1 headlines · scroll for more →</div></div>'
                  f'<div class="news-feed">{"".join(feed)}</div>')
 
     body = (hero + lead + drivers_sec + cons_sec + news_feed)
