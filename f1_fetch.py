@@ -519,7 +519,11 @@ def fetch_news(limit=10):
         def g(tag, blk=it):
             m = re.search(r"<%s>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</%s>" % (tag, tag), blk, re.S)
             return _html.unescape(re.sub("<.*?>", "", m.group(1)).strip()) if m else ""
-        out.append({"title": g("title"), "link": g("link"), "date": g("pubDate")})
+        em = re.search(r'<enclosure[^>]*url="([^"]+\.(?:jpg|jpeg|png))"', it, re.I)
+        if not em:
+            em = re.search(r'(https?://[^\s"\'<>]+\.(?:jpg|jpeg|png))', it, re.I)
+        out.append({"title": g("title"), "link": g("link"), "date": g("pubDate"),
+                    "image": em.group(1) if em else None})
     return [x for x in out if x["title"]]
 
 
@@ -604,6 +608,44 @@ CIRCUIT_PHOTO_QUERY = {
     "interlagos": "Interlagos circuit aerial", "vegas": "Las Vegas Strip night",
     "losail": "Lusail International Circuit", "yas_marina": "Yas Marina Circuit aerial",
 }
+
+
+# Per-constructor Commons search → a representative car photo (2024/25 chassis)
+CONSTRUCTOR_CAR_QUERY = {
+    "ferrari": "Ferrari SF-24 2024 Formula One", "mercedes": "Mercedes W15 2024 Formula One",
+    "red_bull": "Red Bull RB20 2024", "mclaren": "McLaren MCL38 2024",
+    "aston_martin": "Aston Martin AMR24 2024", "alpine": "Alpine A524 2024",
+    "williams": "Williams FW46 2024", "rb": "RB VCARB 01 2024",
+    "haas": "Haas VF-24 2024", "audi": "Sauber C44 2024", "cadillac": "Formula One car 2024",
+}
+
+
+def fetch_constructor_cars(constructors):
+    """One CC-licensed car photo per 2026 constructor (Commons), carried forward."""
+    import re as _re
+    prev = {}
+    sf = os.path.join(DATA_DIR, "standings.json")
+    if os.path.exists(sf):
+        try:
+            prev = {k: v for k, v in (json.load(open(sf)).get("cars") or {}).items() if v}
+        except Exception:
+            pass
+    out = dict(prev)
+    for c in constructors:
+        cid = c["constructorId"]
+        if out.get(cid):
+            continue
+        d = _commons_search(CONSTRUCTOR_CAR_QUERY.get(cid, f'{c["name"]} 2024 Formula One'))
+        pages = sorted(d.get("query", {}).get("pages", {}).values(),
+                       key=lambda p: -(p.get("imageinfo", [{}])[0].get("width", 0)))
+        for p in pages:
+            ii = (p.get("imageinfo") or [{}])[0]
+            w, h, t = ii.get("width", 0), ii.get("height", 0), p.get("title", "")
+            if w >= 1200 and w > h and t.lower().endswith((".jpg", ".jpeg")) \
+                    and not any(k in t.lower() for k in ("logo", "helmet", "map", "garage", "pit")):
+                out[cid] = ii.get("thumburl"); break
+        time.sleep(0.15)
+    return out
 
 
 def _commons_search(query, limit=18):
@@ -713,8 +755,11 @@ def fetch_all():
     dstand = fetch_driver_standings(LIVE_SEASON)
     cstand = fetch_constructor_standings(LIVE_SEASON)
     drivers_idx, colour_by_num, photo_by_num = build_driver_index(dstand)
+    print("   · constructor car photos")
+    cars = fetch_constructor_cars(cstand)
     _save("standings.json", {"drivers": dstand, "constructors": cstand,
-                              "colours": colour_by_num, "photos": photo_by_num})
+                              "colours": colour_by_num, "photos": photo_by_num,
+                              "cars": cars})
     _save("drivers.json", drivers_idx)
 
     print("» Sample race telemetry (OpenF1)")

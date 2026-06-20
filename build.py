@@ -520,17 +520,21 @@ def build_overview(d):
                            esc(pred_champ["name"]), pc_d["nationality"] if pc_d else None))
     lead = f'<div class="lead-grid">{"".join(cards)}</div>'
 
-    # ── drivers' championship: podium top-3 + collapsible rest ──────────────
-    def podium(x, cls):
+    cars = standings.get("cars", {})
+    PLACE = {1: "1ST PLACE", 2: "2ND PLACE", 3: "3RD PLACE"}
+
+    # ── drivers' championship: FINALISTS-style image-back cards + rest ───────
+    def fin_driver(x):
+        u = photo(x.get("num"))
+        bg = f'<img class="fin-bg shot" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
         return f"""
-        <div class="pod-card {cls}" style="--c:{team_color(x['constructorId'])}">
-          <div class="pod-pos">{x['pos']}</div>
-          {shot_img(x.get('num'))}
-          <div class="pod-name">{flag(x['nationality'])} {esc(x['family'])}</div>
-          <div class="pod-team">{team_dot(x['constructorId'])}{esc(x['constructor'])} · {x['wins']} wins</div>
-          <div class="pod-pts">{x['points']:.0f} <span>PTS</span></div>
+        <div class="fin-card driver{' lead' if x['pos']==1 else ''}" style="--c:{team_color(x['constructorId'])}">
+          {bg}<div class="fin-scrim"></div><div class="fin-bar"></div>
+          <div class="fin-place">{PLACE.get(x['pos'], 'P'+str(x['pos']))}</div>
+          <div class="fin-top">{team_dot(x['constructorId'])}{esc(x['constructor'])}</div>
+          <div class="fin-pts">{x['points']:.0f}<span>PTS</span></div>
+          <div class="fin-name">{flag(x['nationality'])} {esc(x['given'])} {esc(x['family'])}</div>
         </div>"""
-    dpods = "".join(podium(x, f"p{x['pos']}") for x in dr[:3])
     drest = "".join(
         f'<div class="srow"><span class="pos">{x["pos"]}</span>'
         f'{team_dot(x["constructorId"])}'
@@ -541,21 +545,22 @@ def build_overview(d):
     drivers_sec = f"""
     <div class="sec-head"><h2>Drivers' Championship</h2>
       <div class="sec-sub">Top three on the road · after {completed} rounds</div></div>
-    <div class="hscroll">{dpods}</div>
+    <div class="fin-grid">{"".join(fin_driver(x) for x in dr[:3])}</div>
     <details class="standings-more"><summary>Show all {len(dr)} drivers · standings &amp; results →</summary>
       {drest}</details>"""
 
-    # ── constructors: podium top-3 + collapsible rest ───────────────────────
-    def cpodium(x):
+    # ── constructors' championship: car-photo image-back cards + rest ───────
+    def fin_team(x):
+        u = cars.get(x["constructorId"])
+        bg = f'<img class="fin-bg" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
         return f"""
-        <div class="pod-card p{x['pos']}" style="--c:{team_color(x['constructorId'])}">
-          <div class="pod-pos">{x['pos']}</div>
-          <div class="pod-name" style="margin-top:6px">{esc(x['name'])}</div>
-          <div class="pod-team">{x['wins']} wins</div>
-          <div class="pod-pts" style="margin-top:auto">{x['points']:.0f} <span>PTS</span></div>
-          <div style="position:absolute;right:0;top:0;bottom:0;width:8px;background:{team_color(x['constructorId'])}"></div>
+        <div class="fin-card team{' lead' if x['pos']==1 else ''}" style="--c:{team_color(x['constructorId'])}">
+          {bg}<div class="fin-scrim"></div><div class="fin-bar"></div>
+          <div class="fin-place">{PLACE.get(x['pos'], 'P'+str(x['pos']))}</div>
+          <div class="fin-top">{team_dot(x['constructorId'])}{x['wins']} wins '26</div>
+          <div class="fin-pts">{x['points']:.0f}<span>PTS</span></div>
+          <div class="fin-name">{esc(x['name'])}</div>
         </div>"""
-    cpods = "".join(cpodium(x) for x in cons[:3])
     crest = "".join(
         f'<div class="srow"><span class="pos">{x["pos"]}</span>'
         f'{team_dot(x["constructorId"])}<span><b>{esc(x["name"])}</b></span>'
@@ -564,49 +569,36 @@ def build_overview(d):
     cons_sec = f"""
     <div class="sec-head"><h2>Constructors' Championship</h2>
       <div class="sec-sub">The teams' title fight</div></div>
-    <div class="hscroll">{cpods}</div>
+    <div class="fin-grid">{"".join(fin_team(x) for x in cons[:3])}</div>
     <details class="standings-more"><summary>Show all {len(cons)} teams →</summary>{crest}</details>"""
 
-    # ── Latest F1 news (scraped RSS) ────────────────────────────────────────
+    # ── one photo-led news feed (latest news first, then 2026 retirements) ──
     news = d.get("news", [])
-    news_items = "".join(
-        f'<a class="ev" href="{esc(n["link"])}" target="_blank" rel="noopener noreferrer" '
-        f'style="display:block;padding:9px 0;border-bottom:1px solid var(--outline-2);text-decoration:none">'
-        f'<div style="font-size:13px;line-height:1.35">{esc(n["title"])}</div>'
-        f'<div class="muted mono" style="font-size:10px;margin-top:3px">{esc((n.get("date") or "")[:16])} · motorsport.com ↗</div>'
-        f'</a>'
-        for n in news[:8]) or '<div class="muted" style="font-size:12px">News feed unavailable offline.</div>'
-
-    # ── Reliability & incidents (real, from DNF causes) ─────────────────────
-    inc = d.get("incidents", {"recent": [], "total": 0, "crashes": 0, "mech": 0})
+    inc = d.get("incidents", {"recent": []})
     ticon = {"crash": "💥", "mech": "🔧", "other": "⚠️"}
-    inc_rows = "".join(
-        f'<div class="ev" style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--outline-2);align-items:center">'
-        f'<span>{ticon.get(r["type"],"⚠️")}</span>'
-        f'<span style="flex:1"><b>{esc(r["code"])}</b> {esc(r["driver"])} '
-        f'<span class="muted" style="font-size:11px">· R{r["round"]} {esc(r["raceName"].replace(" Grand Prix",""))}</span>'
-        f'<div class="muted" style="font-size:11px">{esc(r.get("human", r["status"]))}</div></span>'
-        f'<span class="chip {"red" if r["type"]=="crash" else "amber" if r["type"]=="mech" else "dim"}">DNF</span>'
-        f'</div>'
-        for r in inc.get("recent", [])[:10]) or '<div class="muted" style="font-size:12px">No retirements yet this season.</div>'
+    feed = []
+    for n in news[:12]:
+        img = n.get("image")
+        imgdiv = (f'<div class="nf-img" style="background-image:url(\'{esc(img)}\')"></div>'
+                  if img else '<div class="nf-img nf-noimg"><span>PITWALL</span></div>')
+        feed.append(
+            f'<a class="nf-card" href="{esc(n["link"])}" target="_blank" rel="noopener noreferrer">'
+            f'{imgdiv}<div class="nf-body"><span class="nf-cat">F1 News</span>'
+            f'<div class="nf-title">{esc(n["title"])}</div>'
+            f'<div class="nf-date">{esc((n.get("date") or "")[:16])} · motorsport.com ↗</div></div></a>')
+    for r in inc.get("recent", [])[:8]:
+        tcls = "crash" if r["type"] == "crash" else "mech" if r["type"] == "mech" else "other"
+        feed.append(
+            f'<div class="nf-card inc">'
+            f'<div class="nf-img inc-{tcls}"><span>{ticon.get(r["type"],"⚠️")}</span></div>'
+            f'<div class="nf-body"><span class="nf-cat red">Retirement · R{r["round"]}</span>'
+            f'<div class="nf-title">{esc(r["code"])} {esc(r["driver"])} — {esc(r.get("human", r["status"]))}</div>'
+            f'<div class="nf-date">{esc(r["raceName"].replace(" Grand Prix",""))} Grand Prix</div></div></div>')
+    news_feed = (f'<div class="sec-head"><h2>From the Paddock</h2>'
+                 f'<div class="sec-sub">Latest F1 headlines &amp; 2026 retirements · scroll for more →</div></div>'
+                 f'<div class="news-feed">{"".join(feed)}</div>')
 
-    news_inc = f"""
-    <div class="grid g2" style="margin-top:20px;align-items:start">
-      <div class="card"><div class="sec-title" style="margin-top:0">Latest F1 News</div>
-        {news_items}</div>
-      <div class="card"><div class="sec-title" style="margin-top:0">Reliability &amp; Incidents · 2026</div>
-        <div class="flex gap8 wrap-f" style="margin-bottom:10px">
-          <span class="chip red">💥 {inc.get("crashes",0)} crash / damage</span>
-          <span class="chip amber">🔧 {inc.get("mech",0)} mechanical</span>
-          <span class="chip dim">{inc.get("total",0)} total DNFs</span>
-        </div>
-        {inc_rows}
-      </div>
-    </div>"""
-
-    paddock_head = ('<div class="sec-head"><h2>From the Paddock</h2>'
-                    '<div class="sec-sub">Latest headlines &amp; 2026 reliability</div></div>')
-    body = (hero + lead + drivers_sec + cons_sec + paddock_head + news_inc)
+    body = (hero + lead + drivers_sec + cons_sec + news_feed)
     cd_data = {"target": nr["date"] + "T" + (sched and "00:00:00") }
     # find next race time from schedule
     nr_full = next((r for r in sched if r["round"] == nr["round"]), None)
