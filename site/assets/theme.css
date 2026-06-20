@@ -165,6 +165,13 @@ nav.tabs a.active{color:#fff;background:var(--lime);font-weight:700}
 .fin-scrim{position:absolute;inset:0;z-index:1;background:
   linear-gradient(90deg,rgba(8,8,12,.94) 0%,rgba(8,8,12,.62) 48%,rgba(8,8,12,.15) 100%),
   linear-gradient(0deg,color-mix(in srgb,var(--c,#444) 35%,transparent),transparent 60%)}
+/* driver cards: official headshot as a right-anchored portrait on the team gradient */
+.fin-card.driver{background:linear-gradient(120deg,color-mix(in srgb,var(--c,#444) 80%,#0c0c12),
+  color-mix(in srgb,var(--c,#444) 32%,#0c0c12) 58%,#0c0c12)}
+.fin-card.driver .fin-bg{left:auto;right:-4px;top:auto;bottom:0;width:auto;height:122%;
+  object-fit:contain;object-position:bottom right;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5))}
+.fin-card.driver .fin-scrim{background:
+  linear-gradient(90deg,rgba(8,8,12,.82) 0%,rgba(8,8,12,.35) 45%,transparent 72%)}
 .fin-bar{position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c,#888);z-index:2}
 .fin-place{position:absolute;top:12px;right:12px;z-index:3;background:#fff;color:#0c0c12;
   font-family:'Titillium Web';font-weight:800;font-size:10.5px;letter-spacing:.06em;

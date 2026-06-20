@@ -526,8 +526,8 @@ def build_overview(d):
 
     # ── drivers' championship: FINALISTS-style image-back cards + rest ───────
     def fin_driver(x):
-        # free CC photo of the driver fills the card (falls back to headshot)
-        u = dphotos.get(x["driverId"]) or photo(x.get("num"))
+        # official F1 headshot (tight studio portrait), framed on the right
+        u = photo(x.get("num")) or dphotos.get(x["driverId"])
         bg = f'<img class="fin-bg" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
         return f"""
         <div class="fin-card driver{' lead' if x['pos']==1 else ''}" style="--c:{team_color(x['constructorId'])}">
