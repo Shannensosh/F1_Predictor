@@ -525,10 +525,21 @@ def build_overview(d):
     PLACE = {1: "1ST PLACE", 2: "2ND PLACE", 3: "3RD PLACE"}
 
     # ── drivers' championship: FINALISTS-style image-back cards + rest ───────
+    def _custom_driver_img(did):
+        for ext in ("jpg", "jpeg", "png", "webp", "avif"):
+            if os.path.exists(os.path.join(SITE, "assets", "drivers", f"{did}.{ext}")):
+                return f"assets/drivers/{did}.{ext}"
+        return None
+
     def fin_driver(x):
-        # official F1 headshot (tight studio portrait), framed on the right
-        u = photo(x.get("num")) or dphotos.get(x["driverId"])
-        bg = f'<img class="fin-bg" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
+        did = x["driverId"]
+        custom = _custom_driver_img(did)        # drop a cockpit/action shot here
+        if custom:
+            bg = f'<img class="fin-bg cover" src="{esc(custom)}" alt="" loading="lazy">'
+        else:
+            # fall back to the official F1 headshot (tight studio portrait, right-framed)
+            u = photo(x.get("num")) or dphotos.get(did)
+            bg = f'<img class="fin-bg" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
         return f"""
         <div class="fin-card driver{' lead' if x['pos']==1 else ''}" style="--c:{team_color(x['constructorId'])}">
           {bg}<div class="fin-scrim"></div><div class="fin-bar"></div>
