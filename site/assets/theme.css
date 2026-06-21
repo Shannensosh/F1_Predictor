@@ -269,6 +269,11 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .std-table tbody tr:last-child td{border-bottom:0}
 .std-table .st-pos{font-family:'JetBrains Mono';font-weight:700;color:var(--muted);
   width:44px;text-align:center}
+.std-table .st-mv{font-family:'JetBrains Mono';font-weight:700;font-size:12px;
+  width:52px;text-align:center;white-space:nowrap}
+.std-table td.st-mv.up{color:var(--green)}
+.std-table td.st-mv.down{color:var(--red)}
+.std-table td.st-mv.flat{color:var(--muted)}
 .std-table .st-drv{font-weight:600;white-space:nowrap}
 .std-table .st-drv b{font-weight:700}
 .std-table .st-cty{color:var(--muted);white-space:nowrap}
@@ -277,8 +282,7 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .std-table td.num{color:#d7d5de}
 .std-table td.pts{color:#fff;font-weight:700}
 .std-table .teamdot{vertical-align:middle}
-@media(max-width:720px){.std-table .st-cty,.std-table thead th:nth-child(3),
-  .std-table td.st-cty{display:none}}
+@media(max-width:720px){.std-table .st-cty{display:none}}
 
 /* ── page scaffolding ───────────────────────────────────────────────────── */
 main{padding:28px 0 80px}

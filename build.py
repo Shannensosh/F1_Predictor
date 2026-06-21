@@ -516,7 +516,28 @@ def build_overview(d):
 
     cars = standings.get("cars", {})
     dphotos = standings.get("driver_photos", {})
+    prev_drv = standings.get("prev_drivers", {})
+    prev_con = standings.get("prev_constructors", {})
     PLACE = {1: "1ST PLACE", 2: "2ND PLACE", 3: "3RD PLACE"}
+
+    # drop the marketing "F1 Team" / "Team" suffix for the clean standings tables
+    def short_team(name):
+        n = (name or "").strip()
+        for suf in (" F1 Team", " Formula 1 Team", " Racing", " Team"):
+            if n.endswith(suf):
+                n = n[:-len(suf)].strip()
+        return n
+
+    # race-on-race movement vs the previous round's official standings
+    def delta_cell(prev_pos, cur_pos):
+        if not prev_pos:
+            return '<td class="st-mv flat" title="No change recorded">–</td>'
+        diff = int(prev_pos) - int(cur_pos)          # +ve = gained places
+        if diff > 0:
+            return f'<td class="st-mv up" title="Up {diff} from last race">▲{diff}</td>'
+        if diff < 0:
+            return f'<td class="st-mv down" title="Down {abs(diff)} from last race">▼{abs(diff)}</td>'
+        return '<td class="st-mv flat" title="No change">–</td>'
 
     # ── drivers' championship: FINALISTS-style image-back cards + rest ───────
     # index whatever the user dropped in site/assets/drivers/ (any filename that
@@ -537,6 +558,22 @@ def build_overview(d):
         for stem, fn in _drv_files:
             if (len(fam) >= 4 and fam in stem) or stem == did or (code and stem == code):
                 return f"assets/drivers/{fn}"
+        return None
+
+    # index whatever the user dropped in site/assets/cars/ (filename = constructorId
+    # or team name, e.g. mclaren.jpg / red_bull.png) — overrides the Commons photo
+    _car_dir = os.path.join(SITE, "assets", "cars")
+    _car_files = []
+    if os.path.isdir(_car_dir):
+        for fn in os.listdir(_car_dir):
+            if fn.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".avif")):
+                _car_files.append((_norm(os.path.splitext(fn)[0]), fn))
+
+    def _custom_car_img(x):
+        cid = _norm(x["constructorId"]); nm = _norm(x["name"])
+        for stem, fn in _car_files:
+            if stem == cid or stem == nm or (len(nm) >= 4 and nm in stem) or (len(stem) >= 4 and stem in cid):
+                return f"assets/cars/{fn}"
         return None
 
     def fin_driver(x):
@@ -561,17 +598,19 @@ def build_overview(d):
 
     drows = "".join(
         f'<tr><td class="st-pos">{x["pos"]}</td>'
+        f'{delta_cell(prev_drv.get(x["driverId"]), x["pos"])}'
         f'<td class="st-drv">{team_dot(x["constructorId"])}'
         f'<b>{esc(x["given"])} {esc(x["family"])}</b></td>'
         f'<td class="st-cty">{flag(x["nationality"])} {esc(x["nationality"])}</td>'
-        f'<td class="st-team">{esc(x["constructor"])}</td>'
+        f'<td class="st-team">{esc(short_team(x["constructor"]))}</td>'
         f'<td class="num">{_pod(x["driverId"])}</td>'
         f'<td class="num">{x["wins"]}</td>'
         f'<td class="num pts">{x["points"]:.0f}</td></tr>'
         for x in dr)
     drivers_table = f"""
       <table class="std-table">
-        <thead><tr><th>Pos</th><th>Driver</th><th>Country</th><th>Team</th>
+        <thead><tr><th>Pos</th><th class="st-mv" title="Change vs last race">+/–</th>
+          <th>Driver</th><th class="st-cty">Country</th><th>Team</th>
           <th class="num">Podiums</th><th class="num">Wins</th><th class="num">Points</th></tr></thead>
         <tbody>{drows}</tbody>
       </table>"""
@@ -584,7 +623,7 @@ def build_overview(d):
 
     # ── constructors' championship: car-photo image-back cards + rest ───────
     def fin_team(x):
-        u = cars.get(x["constructorId"])
+        u = _custom_car_img(x) or cars.get(x["constructorId"])
         bg = f'<img class="fin-bg" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
         return f"""
         <div class="fin-card team{' lead' if x['pos']==1 else ''}" style="--c:{team_color(x['constructorId'])}">
@@ -600,7 +639,8 @@ def build_overview(d):
         team_pod[x["constructorId"]] = team_pod.get(x["constructorId"], 0) + _pod(x["driverId"])
     crows = "".join(
         f'<tr><td class="st-pos">{x["pos"]}</td>'
-        f'<td class="st-drv">{team_dot(x["constructorId"])}<b>{esc(x["name"])}</b></td>'
+        f'{delta_cell(prev_con.get(x["constructorId"]), x["pos"])}'
+        f'<td class="st-drv">{team_dot(x["constructorId"])}<b>{esc(short_team(x["name"]))}</b></td>'
         f'<td class="st-cty">{flag(x.get("nationality"))} {esc(x.get("nationality") or "")}</td>'
         f'<td class="num">{team_pod.get(x["constructorId"], 0)}</td>'
         f'<td class="num">{x["wins"]}</td>'
@@ -608,7 +648,8 @@ def build_overview(d):
         for x in cons)
     cons_table = f"""
       <table class="std-table cons">
-        <thead><tr><th>Pos</th><th>Team</th><th>Country</th>
+        <thead><tr><th>Pos</th><th class="st-mv" title="Change vs last race">+/–</th>
+          <th>Team</th><th class="st-cty">Country</th>
           <th class="num">Podiums</th><th class="num">Wins</th><th class="num">Points</th></tr></thead>
         <tbody>{crows}</tbody>
       </table>"""

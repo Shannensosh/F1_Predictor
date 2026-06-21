@@ -238,8 +238,11 @@ def fetch_sprint(season):
     return _merge_by_round(out, "results")
 
 
-def fetch_driver_standings(season):
-    d = _get(f"{JOLPICA}/{season}/driverStandings.json", cache_key=f"{season}_dstand")
+def fetch_driver_standings(season, rnd=None):
+    url = (f"{JOLPICA}/{season}/{rnd}/driverStandings.json" if rnd
+           else f"{JOLPICA}/{season}/driverStandings.json")
+    ck = f"{season}_r{rnd}_dstand" if rnd else f"{season}_dstand"
+    d = _get(url, cache_key=ck)
     if not d:
         return []
     lists = d["MRData"]["StandingsTable"]["StandingsLists"]
@@ -261,8 +264,11 @@ def fetch_driver_standings(season):
     return out
 
 
-def fetch_constructor_standings(season):
-    d = _get(f"{JOLPICA}/{season}/constructorStandings.json", cache_key=f"{season}_cstand")
+def fetch_constructor_standings(season, rnd=None):
+    url = (f"{JOLPICA}/{season}/{rnd}/constructorStandings.json" if rnd
+           else f"{JOLPICA}/{season}/constructorStandings.json")
+    ck = f"{season}_r{rnd}_cstand" if rnd else f"{season}_cstand"
+    d = _get(url, cache_key=ck)
     if not d:
         return []
     lists = d["MRData"]["StandingsTable"]["StandingsLists"]
@@ -611,13 +617,14 @@ CIRCUIT_PHOTO_QUERY = {
 
 
 # Per-constructor Commons search → a representative on-track car photo (2024 chassis)
+# 2025-spec (current) liveries from Wikimedia Commons; Cadillac uses its 2026 car.
 CONSTRUCTOR_CAR_QUERY = {
-    "ferrari": "FIA F1 Austria 2024 Ferrari Leclerc", "mercedes": "FIA F1 Austria 2024 Nr. 63 Russell",
-    "red_bull": "FIA F1 Austria 2024 Verstappen Red Bull", "mclaren": "FIA F1 Austria 2024 Norris McLaren",
-    "aston_martin": "FIA F1 Austria 2024 Alonso Aston Martin", "alpine": "FIA F1 Austria 2024 Alpine",
-    "williams": "FIA F1 Austria 2024 Albon Williams", "rb": "FIA F1 Austria 2024 Tsunoda RB",
-    "haas": "FIA F1 Austria 2024 Haas", "audi": "FIA F1 Austria 2024 Sauber",
-    "cadillac": "FIA F1 2024 Formula One car on track",
+    "ferrari": "Ferrari SF-25 2025", "mercedes": "Mercedes W16 2025 Formula One",
+    "red_bull": "Red Bull RB21 2025", "mclaren": "McLaren MCL39 2025",
+    "aston_martin": "FIA F1 Imola 2025 Alonso Aston Martin", "alpine": "FIA F1 Imola 2025 Gasly Alpine",
+    "williams": "FIA F1 Imola 2025 Albon Williams", "rb": "FIA F1 Imola 2025 No. 6 Hadjar",
+    "haas": "FIA F1 Imola 2025 Haas", "audi": "FIA F1 Imola 2025 Sauber",
+    "cadillac": "Cadillac Formula 1 2026 car",
 }
 _CAR_BAD = ("logo", "helmet", "map", "garage", "pit", "1932", "typ ", "classic",
             "gala", "road", "amg gt", "concept", "museum", "retro", "show car")
@@ -812,6 +819,15 @@ def fetch_all():
     print("» Standings (2026)")
     dstand = fetch_driver_standings(LIVE_SEASON)
     cstand = fetch_constructor_standings(LIVE_SEASON)
+    # previous-round standings → race-on-race position movement
+    completed = max((r.get("round", 0) for r in results.get(str(LIVE_SEASON), [])), default=0)
+    prev_drivers, prev_constructors = {}, {}
+    if completed > 1:
+        print(f"   · previous-round standings (after round {completed-1})")
+        prev_drivers = {x["driverId"]: x["pos"]
+                        for x in fetch_driver_standings(LIVE_SEASON, completed - 1)}
+        prev_constructors = {x["constructorId"]: x["pos"]
+                             for x in fetch_constructor_standings(LIVE_SEASON, completed - 1)}
     drivers_idx, colour_by_num, photo_by_num = build_driver_index(dstand)
     print("   · constructor car photos")
     cars = fetch_constructor_cars(cstand)
@@ -819,7 +835,9 @@ def fetch_all():
     driver_photos = fetch_driver_photos(dstand)
     _save("standings.json", {"drivers": dstand, "constructors": cstand,
                               "colours": colour_by_num, "photos": photo_by_num,
-                              "cars": cars, "driver_photos": driver_photos})
+                              "cars": cars, "driver_photos": driver_photos,
+                              "prev_drivers": prev_drivers,
+                              "prev_constructors": prev_constructors})
     _save("drivers.json", drivers_idx)
 
     print("» Sample race telemetry (OpenF1)")
