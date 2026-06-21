@@ -17,6 +17,7 @@ import json
 import os
 import sys
 import datetime
+import unicodedata
 
 import f1_fetch
 import f1_predict
@@ -484,41 +485,34 @@ def build_overview(d):
       {f'<div class="hero-credit">{esc(ccredit)} · Wikimedia</div>' if ccredit else ''}
     </section>"""
 
-    # ── headshot stat cards: centred portrait + frosted info banner ─────────
-    def shot_img(num):
-        u = photo(num)
-        return f'<img class="shot" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
+    # ── stat tiles (trophy-cabinet aesthetic): icon · figure · label · name ──
+    ICON = {
+        "trophy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>',
+        "flag": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></svg>',
+        "target": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
+    }
 
-    def lead_card(num, cid, label, delta, big, unit, name, nat):
-        delta_html = f'<span class="delta {delta[0]}">{delta[1]}</span>' if delta else ""
+    def stat_tile(icon, big, unit, label, name, nat):
         return f"""
-        <div class="lead-card" style="--c:{team_color(cid)}">
-          <div class="lead-photo">{shot_img(num)}</div>
-          <div class="lead-banner">
-            <div class="lead-top">{esc(label)} {delta_html}</div>
-            <div class="lead-big">{big}<span class="unit">{esc(unit)}</span></div>
-          </div>
-          <div class="lead-foot"><span class="fl">{flag(nat)}</span> <span>{esc(name)}</span></div>
+        <div class="stat-tile">
+          <div class="st-icon">{ICON[icon]}</div>
+          <div class="st-fig">{big}<span class="st-unit">{esc(unit)}</span></div>
+          <div class="st-label">{esc(label)}</div>
+          <div class="st-name">{flag(nat)} {esc(name)}</div>
         </div>"""
 
-    cards = []
+    tiles = []
     if leader:
-        cards.append(lead_card(leader.get("num"), leader["constructorId"], "Championship Leader",
-                               ("up", "▲"), f'{leader["points"]:.0f}', "POINTS",
+        tiles.append(stat_tile("trophy", f'{leader["points"]:.0f}', "PTS", "Championship Leader",
                                f'{leader["given"]} {leader["family"]}', leader["nationality"]))
     if last_win:
-        lw = next((x for x in dr if x["driverId"] == last_win["driverId"]), last_win)
-        lw_wins = sum(1 for r in results.get("2026", []) for res in r["results"]
-                      if res["driverId"] == last_win["driverId"] and res["pos"] == 1)
-        cards.append(lead_card(lw.get("num"), last_win["constructorId"],
+        tiles.append(stat_tile("flag", "P1", "",
                                f'Last Winner · {last["raceName"].replace(" Grand Prix","") if last else ""}',
-                               ("up", "▲"), f'{lw_wins}', "WINS '26",
                                f'{last_win["given"]} {last_win["family"]}', last_win.get("nationality")))
     pc_d = next((x for x in dr if x["driverId"] == pred_champ["driverId"]), None)
-    cards.append(lead_card(pred_champ.get("num"), pred_champ["constructorId"], "Predicted Champion",
-                           None, f'{pred_champ["title_pct"]:.0f}<span class="pct">%</span>', "TITLE PROBABILITY",
-                           esc(pred_champ["name"]), pc_d["nationality"] if pc_d else None))
-    lead = f'<div class="lead-grid">{"".join(cards)}</div>'
+    tiles.append(stat_tile("target", f'{pred_champ["title_pct"]:.0f}', "% TITLE", "Predicted Champion",
+                           pred_champ["name"], pc_d["nationality"] if pc_d else None))
+    lead = f'<div class="lead-grid">{"".join(tiles)}</div>'
 
     cars = standings.get("cars", {})
     dphotos = standings.get("driver_photos", {})
@@ -527,7 +521,10 @@ def build_overview(d):
     # ── drivers' championship: FINALISTS-style image-back cards + rest ───────
     # index whatever the user dropped in site/assets/drivers/ (any filename that
     # contains the driver's surname / id / code works — e.g. lewishamilton.jpg)
-    _norm = lambda s: "".join(ch for ch in s.lower() if ch.isalnum())
+    def _norm(s):
+        s = unicodedata.normalize("NFKD", s)
+        s = "".join(c for c in s if not unicodedata.combining(c))
+        return "".join(ch for ch in s.lower() if ch.isalnum())
     _drv_dir = os.path.join(SITE, "assets", "drivers")
     _drv_files = []
     if os.path.isdir(_drv_dir):
@@ -559,19 +556,31 @@ def build_overview(d):
           <div class="fin-pts">{x['points']:.0f}<span>PTS</span></div>
           <div class="fin-name">{flag(x['nationality'])} {esc(x['given'])} {esc(x['family'])}</div>
         </div>"""
-    drest = "".join(
-        f'<div class="srow"><span class="pos">{x["pos"]}</span>'
-        f'{team_dot(x["constructorId"])}'
-        f'<span><b>{esc(x["code"])}</b> {esc(x["family"])} '
-        f'<span class="muted" style="font-size:11px">{esc(x["constructor"])}</span></span>'
-        f'<span class="mono">{x["points"]:.0f}</span></div>'
-        for x in dr[3:])
+    stats = d.get("stats", {})
+    def _pod(did): return stats.get(did, {}).get("y2026", {}).get("podiums", 0)
+
+    drows = "".join(
+        f'<tr><td class="st-pos">{x["pos"]}</td>'
+        f'<td class="st-drv">{team_dot(x["constructorId"])}'
+        f'<b>{esc(x["given"])} {esc(x["family"])}</b></td>'
+        f'<td class="st-cty">{flag(x["nationality"])} {esc(x["nationality"])}</td>'
+        f'<td class="st-team">{esc(x["constructor"])}</td>'
+        f'<td class="num">{_pod(x["driverId"])}</td>'
+        f'<td class="num">{x["wins"]}</td>'
+        f'<td class="num pts">{x["points"]:.0f}</td></tr>'
+        for x in dr)
+    drivers_table = f"""
+      <table class="std-table">
+        <thead><tr><th>Pos</th><th>Driver</th><th>Country</th><th>Team</th>
+          <th class="num">Podiums</th><th class="num">Wins</th><th class="num">Points</th></tr></thead>
+        <tbody>{drows}</tbody>
+      </table>"""
     drivers_sec = f"""
     <div class="sec-head"><h2>Drivers' Championship</h2>
       <div class="sec-sub">Top three on the road · after {completed} rounds</div></div>
     <div class="fin-grid">{"".join(fin_driver(x) for x in dr[:3])}</div>
-    <details class="standings-more"><summary>Show all {len(dr)} drivers · standings &amp; results →</summary>
-      {drest}</details>"""
+    <details class="standings-more"><summary>Full standings · all {len(dr)} drivers →</summary>
+      {drivers_table}</details>"""
 
     # ── constructors' championship: car-photo image-back cards + rest ───────
     def fin_team(x):
@@ -585,16 +594,29 @@ def build_overview(d):
           <div class="fin-pts">{x['points']:.0f}<span>PTS</span></div>
           <div class="fin-name">{esc(x['name'])}</div>
         </div>"""
-    crest = "".join(
-        f'<div class="srow"><span class="pos">{x["pos"]}</span>'
-        f'{team_dot(x["constructorId"])}<span><b>{esc(x["name"])}</b></span>'
-        f'<span class="mono">{x["points"]:.0f}</span></div>'
-        for x in cons[3:])
+    # team podiums = sum of its drivers' 2026 podiums
+    team_pod = {}
+    for x in dr:
+        team_pod[x["constructorId"]] = team_pod.get(x["constructorId"], 0) + _pod(x["driverId"])
+    crows = "".join(
+        f'<tr><td class="st-pos">{x["pos"]}</td>'
+        f'<td class="st-drv">{team_dot(x["constructorId"])}<b>{esc(x["name"])}</b></td>'
+        f'<td class="st-cty">{flag(x.get("nationality"))} {esc(x.get("nationality") or "")}</td>'
+        f'<td class="num">{team_pod.get(x["constructorId"], 0)}</td>'
+        f'<td class="num">{x["wins"]}</td>'
+        f'<td class="num pts">{x["points"]:.0f}</td></tr>'
+        for x in cons)
+    cons_table = f"""
+      <table class="std-table cons">
+        <thead><tr><th>Pos</th><th>Team</th><th>Country</th>
+          <th class="num">Podiums</th><th class="num">Wins</th><th class="num">Points</th></tr></thead>
+        <tbody>{crows}</tbody>
+      </table>"""
     cons_sec = f"""
     <div class="sec-head"><h2>Constructors' Championship</h2>
       <div class="sec-sub">The teams' title fight</div></div>
     <div class="fin-grid">{"".join(fin_team(x) for x in cons[:3])}</div>
-    <details class="standings-more"><summary>Show all {len(cons)} teams →</summary>{crest}</details>"""
+    <details class="standings-more"><summary>Full standings · all {len(cons)} teams →</summary>{cons_table}</details>"""
 
     # ── one photo-led news feed (latest F1 headlines, most recent first) ────
     news = d.get("news", [])
