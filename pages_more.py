@@ -9,13 +9,105 @@ import json
 # ═════════════════════════════════════════════════════════════════════════════
 def build_results(d, ctx):
     page, esc, team_color = ctx["page"], ctx["esc"], ctx["team_color"]
-    results, quali, sprint = d["results"], d["qualifying"] if "qualifying" in d else d["quali"], d["sprint"]
-    standings = d["standings"]
-    colors = {x["constructorId"]: team_color(x["constructorId"]) for x in standings["drivers"]}
+    team_dot, flag, line_chart = ctx["team_dot"], ctx["flag"], ctx["line_chart"]
+    short_team = ctx["short_team"]
+    results, quali, sprint = d["results"], d["quali"], d["sprint"]
+    standings, sched = d["standings"], d["sched"]
+    drivers, cons = standings["drivers"], standings["constructors"]
+    colors = {x["constructorId"]: team_color(x["constructorId"]) for x in drivers}
 
+    # ── season results matrix: driver (rows) × race (cols) ──────────────────
+    race_by_round = {r["round"]: r for r in results.get("2026", [])}
+    sprint_by_round = {r["round"]: r for r in sprint.get("2026", [])}
+    def _rmap(race):
+        return {x["driverId"]: x for x in (race or {}).get("results", [])}
+    race_res = {rnd: _rmap(r) for rnd, r in race_by_round.items()}
+    sprint_res = {rnd: _rmap(r) for rnd, r in sprint_by_round.items()}
+    sprint_rounds = {r["round"] for r in sched if r.get("isSprint")}
+    completed = set(race_by_round.keys())
+
+    def _is_finisher(st):
+        return st == "Finished" or st.startswith("+") or st == "Lapped"
+
+    def _disp(rr):
+        """(display text, kind) — kind 'dnf' means RET/DNS/DSQ."""
+        st = rr.get("status") or ""
+        pos, pt = rr.get("pos"), rr.get("posText")
+        if pt == "W" or "not start" in st.lower():
+            return "DNS", "dnf"
+        if "disqualif" in st.lower():
+            return "DSQ", "dnf"
+        if not _is_finisher(st) or not isinstance(pos, int):
+            return "RET", "dnf"
+        return str(pos), "fin"
+
+    def matrix_cell(rnd, x):
+        did = x["driverId"]
+        if rnd not in completed:
+            return '<td class="rc rc-none">·</td>'
+        rr = race_res.get(rnd, {}).get(did)
+        sp = sprint_res.get(rnd, {}).get(did)
+        if not rr and not sp:
+            return '<td class="rc rc-none">–</td>'
+        gp_pts = (rr.get("points") if rr else 0) or 0
+        sp_pts = (sp.get("points") if sp else 0) or 0
+        pts = gp_pts + sp_pts
+        if rr:
+            text, kind = _disp(rr); pos = rr.get("pos")
+        else:
+            text, kind, pos = "—", "fin", None
+        if kind == "dnf":
+            cls = "rc-dnf"
+        elif isinstance(pos, int) and pos == 1:
+            cls = "rc-win"
+        elif isinstance(pos, int) and pos <= 3:
+            cls = "rc-pod"
+        elif pts > 0:
+            cls = "rc-pts"
+        else:
+            cls = "rc-fin"
+        sup = f'<sup>{pts:.0f}</sup>' if pts > 0 else ""
+        # tooltip: race name + race finish/points + sprint finish/points
+        tip = f'{race_by_round[rnd]["raceName"]} — '
+        tip += f'{text}' + (f', {gp_pts:.0f} pts' if rr else '')
+        if sp:
+            sptext, _k = _disp(sp)
+            tip += f' · Sprint {sptext}, {sp_pts:.0f} pts'
+        return f'<td class="rc {cls}" title="{esc(tip)}">{esc(text)}{sup}</td>'
+
+    head = "".join(
+        f'<th class="rmx-race{" sprint" if r["round"] in sprint_rounds else ""}" '
+        f'title="R{r["round"]} · {esc(r["name"])}'
+        f'{" · Sprint weekend" if r["round"] in sprint_rounds else ""}">'
+        f'<span class="rmx-fl">{flag(r["country"])}</span>'
+        f'<span class="rmx-rnd">R{r["round"]}{"·S" if r["round"] in sprint_rounds else ""}</span></th>'
+        for r in sched)
+    mrows = "".join(
+        f'<tr><td class="rmx-drv"><span class="pos">{x["pos"]}</span>'
+        f'{team_dot(x["constructorId"])}<b>{esc(x["code"])}</b>'
+        f'<span class="rmx-sur">{esc(x["family"])}</span></td>'
+        + "".join(matrix_cell(r["round"], x) for r in sched)
+        + f'<td class="rmx-pts">{x["points"]:.0f}</td></tr>'
+        for x in drivers)
+    n_done = len(completed)
+    matrix = f"""
+    <div class="sec-head"><h2>Season Results</h2>
+      <div class="sec-sub">Every driver's finish &amp; points · {n_done} of {len(sched)} rounds run</div></div>
+    <div class="rmx-wrap"><table class="results-matrix">
+      <thead><tr><th class="rmx-drv-h">Driver</th>{head}<th class="rmx-pts-h">Pts</th></tr></thead>
+      <tbody>{mrows}</tbody>
+    </table></div>
+    <div class="rmx-legend">
+      <span><i class="rc-win"></i>Win</span><span><i class="rc-pod"></i>Podium</span>
+      <span><i class="rc-pts"></i>Points</span><span><i class="rc-fin"></i>Finished</span>
+      <span><i class="rc-dnf"></i>RET / DNS</span>
+      <span class="rmx-note">number = race finish · <sup>n</sup> = points scored that weekend (incl. sprint) ·
+        “·S” marks a sprint round · hover a cell for detail</span>
+    </div>"""
+
+    # ── per-session browser (Race / Qualifying / Sprint, one round at a time)
     def index_round(arr):
         return {str(r["round"]): r for r in arr}
-
     payload = {
         "race": index_round(results.get("2026", [])),
         "quali": index_round(quali.get("2026", [])),
@@ -23,13 +115,14 @@ def build_results(d, ctx):
         "colors": colors,
     }
     rounds = sorted(payload["race"].keys(), key=int)
-    sprint_rounds = set(payload["sprint"].keys())
+    spr_keys = set(payload["sprint"].keys())
     opts = "".join(
         f'<option value="{r}">R{r} · {esc(payload["race"][r]["raceName"])}'
-        f'{" (Sprint)" if r in sprint_rounds else ""}</option>'
+        f'{" (Sprint)" if r in spr_keys else ""}</option>'
         for r in rounds)
-
     toolbar = f"""
+    <div class="sec-head"><h2>Session Detail</h2>
+      <div class="sec-sub">Full classification for any round — race, qualifying or sprint</div></div>
     <div class="toolbar">
       <select id="rsel" onchange="render()">{opts}</select>
       <div class="seg" id="catseg">
@@ -39,89 +132,47 @@ def build_results(d, ctx):
       </div>
       <input id="flt" type="search" placeholder="Filter driver…" oninput="render()" style="flex:1;min-width:160px">
     </div>
-    <div id="rwrap" class="tbl-wrap"></div>
+    <div id="rwrap" class="rmx-wrap"></div>
     <div class="note" id="rnote" style="margin-top:10px"></div>"""
 
-    # ── season aggregates (wins / podiums / poles / fastest laps) ───────────
-    team_dot, line_chart = ctx["team_dot"], ctx["line_chart"]
-    team_color = ctx["team_color"]
-    agg = {x["driverId"]: {"wins": 0, "pod": 0, "pole": 0, "fl": 0} for x in standings["drivers"]}
-    for race in d["results"].get("2026", []):
-        for res in race["results"]:
-            a = agg.get(res["driverId"])
-            if not a:
-                continue
-            if isinstance(res["pos"], int):
-                if res["pos"] == 1: a["wins"] += 1
-                if res["pos"] <= 3: a["pod"] += 1
-            if str(res.get("fastestRank")) == "1": a["fl"] += 1
-    for race in (d["quali"] if "quali" in d else d["qualifying"]).get("2026", []):
-        for q in race["results"]:
-            if q["pos"] == 1 and q["driverId"] in agg:
-                agg[q["driverId"]]["pole"] += 1
-
-    def _top(metric, label):
-        best = max(standings["drivers"], key=lambda x: agg[x["driverId"]][metric])
-        v = agg[best["driverId"]][metric]
-        return (f'<div class="card kpi"><span class="k-label">{label}</span>'
-                f'<span class="k-val sm">{esc(best["family"])}</span>'
-                f'<span class="k-sub">{team_dot(best["constructorId"])}{v}</span></div>')
-    leader = standings["drivers"][0]
-    tiles = (f'<div class="grid g4">'
-             f'<div class="card kpi glow"><span class="k-label">Championship Leader</span>'
-             f'<span class="k-val sm">{esc(leader["family"])}</span>'
-             f'<span class="k-sub">{team_dot(leader["constructorId"])}{leader["points"]:.0f} pts</span></div>'
-             + _top("wins", "Most Wins") + _top("pod", "Most Podiums")
-             + _top("fl", "Most Fastest Laps") + "</div>")
-
+    # ── championship standings (std-table, matches the dashboard) ───────────
     drows = "".join(
-        f'<tr><td><span class="pos pos-{x["pos"] if x["pos"]<=3 else 0}">{x["pos"]}</span></td>'
-        f'<td>{team_dot(x["constructorId"])}<b>{esc(x["code"])}</b> {esc(x["family"])}</td>'
-        f'<td>{esc(x["constructor"])}</td>'
-        f'<td class="num">{agg[x["driverId"]]["wins"]}</td>'
-        f'<td class="num">{agg[x["driverId"]]["pod"]}</td>'
-        f'<td class="num">{agg[x["driverId"]]["pole"]}</td>'
-        f'<td class="num">{agg[x["driverId"]]["fl"]}</td>'
-        f'<td class="num"><b>{x["points"]:.0f}</b></td></tr>'
-        for x in standings["drivers"])
+        f'<tr><td class="st-pos">{x["pos"]}</td>'
+        f'<td class="st-drv">{team_dot(x["constructorId"])}<b>{esc(x["code"])}</b> {esc(x["family"])}</td>'
+        f'<td class="st-team">{esc(short_team(x["constructor"]))}</td>'
+        f'<td class="num">{x["wins"]}</td>'
+        f'<td class="num pts">{x["points"]:.0f}</td></tr>'
+        for x in drivers)
     crows = "".join(
-        f'<tr><td><span class="pos pos-{x["pos"] if x["pos"]<=3 else 0}">{x["pos"]}</span></td>'
-        f'<td>{team_dot(x["constructorId"])}<b>{esc(x["name"])}</b></td>'
-        f'<td class="num">{x["wins"]}</td><td class="num"><b>{x["points"]:.0f}</b></td></tr>'
-        for x in standings["constructors"])
-
-    top8 = standings["drivers"][:8]
-    series = [{"name": x["code"], "color": team_color(x["constructorId"]),
-               "pts": d["evo"].get(x["driverId"], [])} for x in top8 if d["evo"].get(x["driverId"])]
-    chart = line_chart(d["evo_rounds"], series)
-
+        f'<tr><td class="st-pos">{x["pos"]}</td>'
+        f'<td class="st-drv">{team_dot(x["constructorId"])}<b>{esc(short_team(x["name"]))}</b></td>'
+        f'<td class="num">{x["wins"]}</td>'
+        f'<td class="num pts">{x["points"]:.0f}</td></tr>'
+        for x in cons)
     standings_html = f"""
-    <div id="standings"></div>
-    {tiles}
-    <div class="grid g2" style="margin-top:14px;align-items:start">
-      <div><div class="sec-title">Drivers' Championship</div>
-        <div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>Driver</th><th>Team</th>
-        <th class="num" title="Wins">W</th><th class="num" title="Podiums">Pod</th>
-        <th class="num" title="Poles">PP</th><th class="num" title="Fastest laps">FL</th>
-        <th class="num">Pts</th></tr></thead><tbody>{drows}</tbody></table></div></div>
-      <div><div class="sec-title">Constructors' Championship</div>
-        <div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>Constructor</th>
-        <th class="num">Wins</th><th class="num">Pts</th></tr></thead><tbody>{crows}</tbody></table></div>
-        <div class="sec-title">Points Evolution · Top 8</div>
-        <div class="card card-pad">{chart}</div></div>
+    <div id="standings" class="sec-head"><h2>Championship Standings</h2>
+      <div class="sec-sub">Drivers' &amp; Constructors' titles after {n_done} rounds</div></div>
+    <div class="grid g2" style="align-items:start">
+      <div><table class="std-table">
+        <thead><tr><th>Pos</th><th>Driver</th><th>Team</th>
+          <th class="num">Wins</th><th class="num">Points</th></tr></thead>
+        <tbody>{drows}</tbody></table></div>
+      <div><table class="std-table cons">
+        <thead><tr><th>Pos</th><th>Constructor</th>
+          <th class="num">Wins</th><th class="num">Points</th></tr></thead>
+        <tbody>{crows}</tbody></table></div>
     </div>"""
 
-    body = ('<div class="page-head"><div><h1>Results &amp; Standings</h1>'
-            '<p>The championship picture and every 2026 session in one place — standings with '
-            'wins, podiums, poles and fastest laps, plus the full results browser.</p></div></div>'
-            + standings_html
-            + '<div class="sec-title">Session Results</div>'
-            + toolbar)
+    body = ('<div class="page-head"><div><h1>Results</h1>'
+            '<p>Every driver, every race — finishing position and points across the 2026 season, '
+            'plus full session classifications and the championship standings.</p></div></div>'
+            + matrix + toolbar + standings_html)
 
     js = r"""
 var D=PAGE_DATA(),CAT='race';
 function setCat(btn){CAT=btn.dataset.c;[].forEach.call(btn.parentNode.children,function(b){b.classList.toggle('active',b===btn)});render();}
 function dot(cid){return '<span class="teamdot" style="--c:'+(D.colors[cid]||'#888')+'"></span>';}
+function shortTeam(n){return (n||'').replace(/ (F1 Team|Formula 1 Team|Racing|Team)$/,'');}
 function posCls(p){return (p>=1&&p<=3)?('pos pos-'+p):'pos';}
 function render(){
   var rd=document.getElementById('rsel').value, flt=document.getElementById('flt').value.toLowerCase();
@@ -133,19 +184,19 @@ function render(){
     head='<th>Pos</th><th>Driver</th><th>Team</th><th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th>';
     rowf=function(r){return '<td><span class="'+posCls(r.pos)+'">'+r.pos+'</span></td>'
       +'<td>'+dot(r.constructorId)+'<b>'+r.code+'</b> '+r.given+' '+r.family+'</td>'
-      +'<td>'+r.constructor+'</td>'
+      +'<td>'+shortTeam(r.constructor)+'</td>'
       +'<td class="num">'+(r.q1||'–')+'</td><td class="num">'+(r.q2||'–')+'</td><td class="num">'+(r.q3||'–')+'</td>';};
   } else if(CAT==='sprint'){
     head='<th>Pos</th><th>Driver</th><th>Team</th><th class="num">Grid</th><th>Status</th><th class="num">Pts</th>';
     rowf=function(r){return '<td><span class="'+posCls(r.pos)+'">'+r.posText+'</span></td>'
       +'<td>'+dot(r.constructorId)+'<b>'+r.code+'</b> '+r.given+' '+r.family+'</td>'
-      +'<td>'+r.constructor+'</td><td class="num">'+(r.grid==null?'–':r.grid)+'</td>'
+      +'<td>'+shortTeam(r.constructor)+'</td><td class="num">'+(r.grid==null?'–':r.grid)+'</td>'
       +'<td>'+(r.status||'')+'</td><td class="num">'+(r.points||0)+'</td>';};
   } else {
     head='<th>Pos</th><th>Driver</th><th>Team</th><th class="num">Grid</th><th class="num">Laps</th><th>Time / Status</th><th class="num">Pts</th><th class="num">Fastest</th>';
     rowf=function(r){return '<td><span class="'+posCls(r.pos)+'">'+r.posText+'</span></td>'
       +'<td>'+dot(r.constructorId)+'<b>'+r.code+'</b> '+r.given+' '+r.family+'</td>'
-      +'<td>'+r.constructor+'</td><td class="num">'+(r.grid==null?'–':r.grid)+'</td>'
+      +'<td>'+shortTeam(r.constructor)+'</td><td class="num">'+(r.grid==null?'–':r.grid)+'</td>'
       +'<td class="num">'+(r.laps==null?'–':r.laps)+'</td>'
       +'<td>'+(r.time||r.status||'')+'</td><td class="num">'+(r.points||0)+'</td>'
       +'<td class="num">'+(r.fastestLap||'–')+'</td>';};
@@ -154,7 +205,7 @@ function render(){
     .map(function(r){return '<tr>'+rowf(r)+'</tr>';}).join('');
   // fixed layout + shared colgroup → Pos/Driver/Team align across all three tabs
   var cg='<colgroup><col style="width:54px"><col style="width:32%"><col style="width:20%"></colgroup>';
-  wrap.innerHTML='<table style="table-layout:fixed">'+cg+'<thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table>';
+  wrap.innerHTML='<table class="std-table" style="table-layout:fixed">'+cg+'<thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table>';
 }
 document.getElementById('rsel').value=document.getElementById('rsel').options[document.getElementById('rsel').options.length-1].value;
 render();

@@ -284,6 +284,52 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .std-table .teamdot{vertical-align:middle}
 @media(max-width:720px){.std-table .st-cty{display:none}}
 
+/* ── Results matrix: driver × race grid (formula-timer style) ───────────── */
+.rmx-wrap{overflow-x:auto;border:1px solid var(--outline-2);border-radius:var(--r-lg);background:var(--bg)}
+.results-matrix{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+.results-matrix th,.results-matrix td{border-bottom:1px solid var(--outline-2);
+  border-right:1px solid var(--outline-2);text-align:center;white-space:nowrap}
+.results-matrix thead th{background:var(--lime);color:#fff;font-family:'Titillium Web';font-weight:700;
+  font-size:11px;letter-spacing:.03em;padding:7px 5px;border-right-color:rgba(255,255,255,.18);
+  border-bottom:0;position:sticky;top:0;z-index:3}
+.results-matrix tbody tr:last-child td{border-bottom:0}
+.results-matrix tbody tr:hover td.rc-fin,.results-matrix tbody tr:hover td.rc-none{background:var(--l1)}
+/* race column headers: flag over round label */
+.rmx-race .rmx-fl{display:block;font-size:16px;line-height:1.15}
+.rmx-race .rmx-rnd{display:block;font-size:9px;opacity:.85;font-family:'JetBrains Mono';font-weight:500}
+.rmx-race.sprint{box-shadow:inset 0 -3px 0 rgba(255,255,255,.45)}
+/* sticky Driver column (left) */
+.results-matrix .rmx-drv-h{position:sticky;left:0;z-index:5;text-align:left;padding-left:12px;min-width:150px}
+.results-matrix td.rmx-drv{position:sticky;left:0;z-index:2;background:var(--l1);text-align:left;
+  padding:8px 12px;font-family:'Titillium Web';min-width:150px;border-right:2px solid var(--outline)}
+.results-matrix td.rmx-drv .pos{display:inline-block;width:20px;color:var(--muted);
+  font-family:'JetBrains Mono';font-weight:700;text-align:right;margin-right:2px}
+.results-matrix td.rmx-drv b{font-weight:700;margin-right:6px}
+.results-matrix td.rmx-drv .rmx-sur{color:var(--muted);font-size:12px;font-weight:600}
+/* result cells */
+.results-matrix td.rc{font-family:'JetBrains Mono';font-weight:700;padding:8px 5px;min-width:40px;color:#fff}
+.results-matrix td.rc sup{font-size:8.5px;font-weight:500;opacity:.9;margin-left:1px}
+.rc-win{background:#D8A81E;color:#15151E}
+.rc-pod{background:#DD6B1A;color:#fff}
+.rc-pts{background:#2E4B73;color:#fff}
+.rc-fin{background:transparent;color:#9a9aa3}
+.rc-dnf{background:#5E1C22;color:#F2A8A8}
+.rc-none{background:transparent;color:#3c3c46}
+/* sticky Pts column (right) */
+.results-matrix .rmx-pts-h{position:sticky;right:0;z-index:3}
+.results-matrix td.rmx-pts{position:sticky;right:0;z-index:2;background:var(--l1);
+  font-family:'JetBrains Mono';font-weight:700;color:#fff;padding:8px 12px;
+  border-right:0;border-left:2px solid var(--outline);min-width:54px}
+/* legend */
+.rmx-legend{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:12px;
+  font-family:'Titillium Web';font-size:12px;color:var(--muted)}
+.rmx-legend span{display:inline-flex;align-items:center;gap:6px}
+.rmx-legend i{width:16px;height:16px;border-radius:3px;display:inline-block;
+  border:1px solid var(--outline-2)}
+.rmx-legend i.rc-fin{background:#23232c}
+.rmx-legend .rmx-note{color:#6f6f78;font-size:11px}
+.rmx-legend .rmx-note sup{font-family:'JetBrains Mono'}
+
 /* ── page scaffolding ───────────────────────────────────────────────────── */
 main{padding:28px 0 80px}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;

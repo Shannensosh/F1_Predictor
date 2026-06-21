@@ -78,6 +78,15 @@ def esc(s):
     return html.escape(str(s if s is not None else ""))
 
 
+def short_team(name):
+    """Drop the marketing ' F1 Team' / ' Racing' / ' Team' suffix for clean tables."""
+    n = (name or "").strip()
+    for suf in (" F1 Team", " Formula 1 Team", " Racing", " Team"):
+        if n.endswith(suf):
+            n = n[:-len(suf)].strip()
+    return n
+
+
 def _load(name):
     with open(os.path.join(DATA, name)) as f:
         return json.load(f)
@@ -520,14 +529,6 @@ def build_overview(d):
     prev_con = standings.get("prev_constructors", {})
     PLACE = {1: "1ST PLACE", 2: "2ND PLACE", 3: "3RD PLACE"}
 
-    # drop the marketing "F1 Team" / "Team" suffix for the clean standings tables
-    def short_team(name):
-        n = (name or "").strip()
-        for suf in (" F1 Team", " Formula 1 Team", " Racing", " Team"):
-            if n.endswith(suf):
-                n = n[:-len(suf)].strip()
-        return n
-
     # race-on-race movement vs the previous round's official standings
     def delta_cell(prev_pos, cur_pos):
         if not prev_pos:
@@ -959,7 +960,7 @@ def main():
 
     ctx = {"page": page, "esc": esc, "flag": flag, "dbadge": dbadge,
            "bar_row": bar_row, "team_color": team_color, "team_dot": team_dot,
-           "line_chart": line_chart, "C": C}
+           "line_chart": line_chart, "short_team": short_team, "C": C}
 
     # live page = the f1-race-replay browser port, fed by the baked replay of
     # the latest Grand Prix (f1_prebake.py). Re-bake if it's stale.
