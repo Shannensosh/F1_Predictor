@@ -9,28 +9,18 @@ import json
 # ═════════════════════════════════════════════════════════════════════════════
 def build_results(d, ctx):
     page, esc, team_color = ctx["page"], ctx["esc"], ctx["team_color"]
-    team_dot, flag, line_chart = ctx["team_dot"], ctx["flag"], ctx["line_chart"]
-    short_team = ctx["short_team"]
+    team_dot, flag, short_team = ctx["team_dot"], ctx["flag"], ctx["short_team"]
     results, quali, sprint = d["results"], d["quali"], d["sprint"]
     standings, sched = d["standings"], d["sched"]
-    drivers, cons = standings["drivers"], standings["constructors"]
-    colors = {x["constructorId"]: team_color(x["constructorId"]) for x in drivers}
-
-    # ── season results matrix: driver (rows) × race (cols) ──────────────────
-    race_by_round = {r["round"]: r for r in results.get("2026", [])}
-    sprint_by_round = {r["round"]: r for r in sprint.get("2026", [])}
-    def _rmap(race):
-        return {x["driverId"]: x for x in (race or {}).get("results", [])}
-    race_res = {rnd: _rmap(r) for rnd, r in race_by_round.items()}
-    sprint_res = {rnd: _rmap(r) for rnd, r in sprint_by_round.items()}
-    sprint_rounds = {r["round"] for r in sched if r.get("isSprint")}
-    completed = set(race_by_round.keys())
+    analytics = d.get("race_analytics", {})
+    drivers = standings["drivers"]
+    code2did = {x["code"]: x["driverId"] for x in drivers}
+    info_by_did = {x["driverId"]: x for x in drivers}
 
     def _is_finisher(st):
         return st == "Finished" or st.startswith("+") or st == "Lapped"
 
     def _disp(rr):
-        """(display text, kind) — kind 'dnf' means RET/DNS/DSQ."""
         st = rr.get("status") or ""
         pos, pt = rr.get("pos"), rr.get("posText")
         if pt == "W" or "not start" in st.lower():
@@ -41,176 +31,271 @@ def build_results(d, ctx):
             return "RET", "dnf"
         return str(pos), "fin"
 
-    def matrix_cell(rnd, x):
-        did = x["driverId"]
-        if rnd not in completed:
-            return '<td class="rc rc-none">·</td>'
-        rr = race_res.get(rnd, {}).get(did)
-        sp = sprint_res.get(rnd, {}).get(did)
-        if not rr and not sp:
-            return '<td class="rc rc-none">–</td>'
-        gp_pts = (rr.get("points") if rr else 0) or 0
-        sp_pts = (sp.get("points") if sp else 0) or 0
-        pts = gp_pts + sp_pts
-        if rr:
-            text, kind = _disp(rr); pos = rr.get("pos")
-        else:
-            text, kind, pos = "—", "fin", None
+    def cell_pts(rr):
+        """Race/Sprint cell: position text + points + colour kind."""
+        text, kind = _disp(rr)
+        pos, pts = rr.get("pos"), int(rr.get("points") or 0)
         if kind == "dnf":
-            cls = "rc-dnf"
+            k = "dnf"
         elif isinstance(pos, int) and pos == 1:
-            cls = "rc-win"
+            k = "win"
         elif isinstance(pos, int) and pos <= 3:
-            cls = "rc-pod"
+            k = "pod"
         elif pts > 0:
-            cls = "rc-pts"
+            k = "pts"
         else:
-            cls = "rc-fin"
-        sup = f'<sup>{pts:.0f}</sup>' if pts > 0 else ""
-        # tooltip: race name + race finish/points + sprint finish/points
-        tip = f'{race_by_round[rnd]["raceName"]} — '
-        tip += f'{text}' + (f', {gp_pts:.0f} pts' if rr else '')
-        if sp:
-            sptext, _k = _disp(sp)
-            tip += f' · Sprint {sptext}, {sp_pts:.0f} pts'
-        return f'<td class="rc {cls}" title="{esc(tip)}">{esc(text)}{sup}</td>'
+            k = "fin"
+        c = {"t": text, "k": k}
+        if pts > 0:
+            c["p"] = pts
+        return c
 
-    head = "".join(
-        f'<th class="rmx-race{" sprint" if r["round"] in sprint_rounds else ""}" '
-        f'title="R{r["round"]} · {esc(r["name"])}'
-        f'{" · Sprint weekend" if r["round"] in sprint_rounds else ""}">'
-        f'<span class="rmx-fl">{flag(r["country"])}</span>'
-        f'<span class="rmx-rnd">R{r["round"]}{"·S" if r["round"] in sprint_rounds else ""}</span></th>'
-        for r in sched)
-    mrows = "".join(
-        f'<tr><td class="rmx-drv"><span class="pos">{x["pos"]}</span>'
-        f'{team_dot(x["constructorId"])}<b>{esc(x["code"])}</b>'
-        f'<span class="rmx-sur">{esc(x["family"])}</span></td>'
-        + "".join(matrix_cell(r["round"], x) for r in sched)
-        + f'<td class="rmx-pts">{x["points"]:.0f}</td></tr>'
-        for x in drivers)
-    n_done = len(completed)
-    matrix = f"""
-    <div class="sec-head"><h2>Season Results</h2>
-      <div class="sec-sub">Every driver's finish &amp; points · {n_done} of {len(sched)} rounds run</div></div>
-    <div class="rmx-wrap"><table class="results-matrix">
-      <thead><tr><th class="rmx-drv-h">Driver</th>{head}<th class="rmx-pts-h">Pts</th></tr></thead>
-      <tbody>{mrows}</tbody>
-    </table></div>
-    <div class="rmx-legend">
-      <span><i class="rc-win"></i>Win</span><span><i class="rc-pod"></i>Podium</span>
-      <span><i class="rc-pts"></i>Points</span><span><i class="rc-fin"></i>Finished</span>
-      <span><i class="rc-dnf"></i>RET / DNS</span>
-      <span class="rmx-note">number = race finish · <sup>n</sup> = points scored that weekend (incl. sprint) ·
-        “·S” marks a sprint round · hover a cell for detail</span>
-    </div>"""
+    def cell_pos(pos):
+        """FP/Qualifying cell: classification position, no points."""
+        if not isinstance(pos, int):
+            return {"t": "–", "k": "none"}
+        k = "win" if pos == 1 else "pod" if pos <= 3 else "pts" if pos <= 10 else "fin"
+        return {"t": str(pos), "k": k}
 
-    # ── per-session browser (Race / Qualifying / Sprint, one round at a time)
-    def index_round(arr):
-        return {str(r["round"]): r for r in arr}
-    payload = {
-        "race": index_round(results.get("2026", [])),
-        "quali": index_round(quali.get("2026", [])),
-        "sprint": index_round(sprint.get("2026", [])),
-        "colors": colors,
+    # ── matrix cells for every session category ─────────────────────────────
+    cells = {"Race": {}, "Qualifying": {}, "Sprint": {}, "FP1": {}, "FP2": {}, "FP3": {}}
+    for race in results.get("2026", []):
+        cells["Race"][str(race["round"])] = {x["driverId"]: cell_pts(x) for x in race["results"]}
+    for race in sprint.get("2026", []):
+        cells["Sprint"][str(race["round"])] = {x["driverId"]: cell_pts(x) for x in race["results"]}
+    for race in quali.get("2026", []):
+        cells["Qualifying"][str(race["round"])] = {x["driverId"]: cell_pos(x["pos"]) for x in race["results"]}
+    for rnd, b in analytics.items():
+        for fpc, ranking in b.get("fp", {}).items():
+            cells.setdefault(fpc, {})[rnd] = {}
+            for code, pos in ranking:
+                did = code2did.get(code)
+                if did:
+                    cells[fpc][rnd][did] = cell_pos(pos)
+
+    mx = {
+        "drivers": [{"did": x["driverId"], "code": x["code"], "fam": x["family"],
+                     "color": team_color(x["constructorId"]), "cpos": x["pos"]} for x in drivers],
+        "rounds": [{"r": r["round"], "flag": flag(r["country"]), "name": esc(r["name"]),
+                    "sprint": bool(r.get("isSprint"))} for r in sched],
+        "cells": cells,
     }
-    rounds = sorted(payload["race"].keys(), key=int)
-    spr_keys = set(payload["sprint"].keys())
-    opts = "".join(
-        f'<option value="{r}">R{r} · {esc(payload["race"][r]["raceName"])}'
-        f'{" (Sprint)" if r in spr_keys else ""}</option>'
-        for r in rounds)
-    toolbar = f"""
-    <div class="sec-head"><h2>Session Detail</h2>
-      <div class="sec-sub">Full classification for any round — race, qualifying or sprint</div></div>
-    <div class="toolbar">
-      <select id="rsel" onchange="render()">{opts}</select>
-      <div class="seg" id="catseg">
-        <button class="active" data-c="race" onclick="setCat(this)">Race</button>
-        <button data-c="quali" onclick="setCat(this)">Qualifying</button>
-        <button data-c="sprint" onclick="setCat(this)">Sprint</button>
-      </div>
-      <input id="flt" type="search" placeholder="Filter driver…" oninput="render()" style="flex:1;min-width:160px">
-    </div>
-    <div id="rwrap" class="rmx-wrap"></div>
-    <div class="note" id="rnote" style="margin-top:10px"></div>"""
 
-    # ── championship standings (std-table, matches the dashboard) ───────────
-    drows = "".join(
-        f'<tr><td class="st-pos">{x["pos"]}</td>'
-        f'<td class="st-drv">{team_dot(x["constructorId"])}<b>{esc(x["code"])}</b> {esc(x["family"])}</td>'
-        f'<td class="st-team">{esc(short_team(x["constructor"]))}</td>'
-        f'<td class="num">{x["wins"]}</td>'
-        f'<td class="num pts">{x["points"]:.0f}</td></tr>'
-        for x in drivers)
-    crows = "".join(
-        f'<tr><td class="st-pos">{x["pos"]}</td>'
-        f'<td class="st-drv">{team_dot(x["constructorId"])}<b>{esc(short_team(x["name"]))}</b></td>'
-        f'<td class="num">{x["wins"]}</td>'
-        f'<td class="num pts">{x["points"]:.0f}</td></tr>'
-        for x in cons)
-    standings_html = f"""
-    <div id="standings" class="sec-head"><h2>Championship Standings</h2>
-      <div class="sec-sub">Drivers' &amp; Constructors' titles after {n_done} rounds</div></div>
-    <div class="grid g2" style="align-items:start">
-      <div><table class="std-table">
-        <thead><tr><th>Pos</th><th>Driver</th><th>Team</th>
-          <th class="num">Wins</th><th class="num">Points</th></tr></thead>
-        <tbody>{drows}</tbody></table></div>
-      <div><table class="std-table cons">
-        <thead><tr><th>Pos</th><th>Constructor</th>
-          <th class="num">Wins</th><th class="num">Points</th></tr></thead>
-        <tbody>{crows}</tbody></table></div>
+    # ── per-race analytics (charts) ─────────────────────────────────────────
+    fin_by_round = {}
+    for race in results.get("2026", []):
+        fin_by_round[race["round"]] = {
+            x["code"]: (x["pos"] if isinstance(x["pos"], int) else 99) for x in race["results"]}
+    ax_rounds, ax_data = [], {}
+    for rnd in sorted(analytics, key=int):
+        b = analytics[rnd]
+        fin = fin_by_round.get(int(rnd), {})
+        adrv = []
+        for code, rd in b.get("race", {}).items():
+            did = code2did.get(code)
+            inf = info_by_did.get(did) if did else None
+            cid = inf["constructorId"] if inf else None
+            adrv.append({
+                "code": code,
+                "fam": inf["family"] if inf else code,
+                "team": short_team(inf["constructor"]) if inf else code,
+                "cid": cid or code,
+                "color": team_color(cid) if cid else "#888",
+                "fin": fin.get(code, 99),
+                "laps": rd.get("laps", []),
+                "pos": rd.get("pos", []),
+                "stints": rd.get("stints", []),
+            })
+        ax_data[rnd] = {"total_laps": b.get("total_laps", 0), "drivers": adrv}
+        ax_rounds.append({"r": int(rnd), "name": esc(b.get("raceName", f"Round {rnd}"))})
+    ax = {"rounds": ax_rounds, "data": ax_data}
+
+    payload = {"mx": mx, "ax": ax}
+
+    # ── page body ───────────────────────────────────────────────────────────
+    cats = ["Race", "Qualifying", "Sprint", "FP1", "FP2", "FP3"]
+    catseg = "".join(
+        f'<button class="{"active" if c == "Race" else ""}" data-cat="{c}" '
+        f'onclick="setCat(this)">{c}</button>' for c in cats)
+    n_done = len(cells["Race"])
+    legend = """
+    <div class="rmx-legend">
+      <span><i class="rc-win"></i>1st</span><span><i class="rc-pod"></i>Podium / top&nbsp;3</span>
+      <span><i class="rc-pts"></i>Points / top&nbsp;10</span><span><i class="rc-fin"></i>Classified</span>
+      <span><i class="rc-dnf"></i>RET / DNS</span>
+      <span class="rmx-note">cell = finishing position · <sup>n</sup> = points (Race &amp; Sprint) ·
+        “·S” marks a sprint round · hover for detail</span>
     </div>"""
+    season = f"""
+    <div class="sec-head"><h2>Season Results</h2>
+      <div class="sec-sub">Every driver, every session · {n_done} of {len(sched)} rounds run</div></div>
+    <div class="toolbar"><div class="seg" id="catseg">{catseg}</div></div>
+    <div class="rmx-wrap" id="mxwrap"></div>
+    {legend}"""
+
+    ropts = "".join(f'<option value="{r["r"]}">R{r["r"]} · {r["name"]}</option>' for r in ax_rounds)
+    analysis = f"""
+    <div class="sec-head" style="margin-top:40px"><h2>Race Analysis</h2>
+      <div class="sec-sub">Lap-time pace, on-track position swings and tyre strategy for any Grand Prix</div></div>
+    <div class="toolbar"><select id="axsel" onchange="renderAX()">{ropts}</select></div>
+    <div class="chart-grid">
+      <div class="card-chart"><div class="ch-title">Lap Time Distribution · Top 10</div><div class="ch-host" id="ch-box"></div></div>
+      <div class="card-chart"><div class="ch-title">Race Position Changes</div><div class="ch-host" id="ch-pos"></div></div>
+    </div>
+    <div class="card-chart"><div class="ch-title">Team Pace · Median Lap</div><div class="ch-host" id="ch-pace"></div></div>
+    <div class="card-chart"><div class="ch-title">Tyre Strategies</div>
+      <div class="tyre-key">
+        <span><i style="background:#E1112A"></i>Soft</span><span><i style="background:#F3D34A"></i>Medium</span>
+        <span><i style="background:#E6E6E6"></i>Hard</span><span><i style="background:#42A65A"></i>Inter</span>
+        <span><i style="background:#3A74D0"></i>Wet</span></div>
+      <div class="ch-host" id="ch-tyre"></div></div>"""
 
     body = ('<div class="page-head"><div><h1>Results</h1>'
-            '<p>Every driver, every race — finishing position and points across the 2026 season, '
-            'plus full session classifications and the championship standings.</p></div></div>'
-            + matrix + toolbar + standings_html)
+            '<p>Every driver and every session of the 2026 season — finishing positions and points, '
+            'then a per-race breakdown of pace, position changes and tyre strategy.</p></div></div>'
+            + season + analysis)
 
     js = r"""
-var D=PAGE_DATA(),CAT='race';
-function setCat(btn){CAT=btn.dataset.c;[].forEach.call(btn.parentNode.children,function(b){b.classList.toggle('active',b===btn)});render();}
-function dot(cid){return '<span class="teamdot" style="--c:'+(D.colors[cid]||'#888')+'"></span>';}
-function shortTeam(n){return (n||'').replace(/ (F1 Team|Formula 1 Team|Racing|Team)$/,'');}
-function posCls(p){return (p>=1&&p<=3)?('pos pos-'+p):'pos';}
-function render(){
-  var rd=document.getElementById('rsel').value, flt=document.getElementById('flt').value.toLowerCase();
-  var src=D[CAT], race=src[rd], wrap=document.getElementById('rwrap'), note=document.getElementById('rnote');
-  if(!race||!race.results||!race.results.length){wrap.innerHTML='';note.textContent='No '+CAT+' data for this round.';return;}
-  note.textContent='';
-  var head,rowf;
-  if(CAT==='quali'){
-    head='<th>Pos</th><th>Driver</th><th>Team</th><th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th>';
-    rowf=function(r){return '<td><span class="'+posCls(r.pos)+'">'+r.pos+'</span></td>'
-      +'<td>'+dot(r.constructorId)+'<b>'+r.code+'</b> '+r.given+' '+r.family+'</td>'
-      +'<td>'+shortTeam(r.constructor)+'</td>'
-      +'<td class="num">'+(r.q1||'–')+'</td><td class="num">'+(r.q2||'–')+'</td><td class="num">'+(r.q3||'–')+'</td>';};
-  } else if(CAT==='sprint'){
-    head='<th>Pos</th><th>Driver</th><th>Team</th><th class="num">Grid</th><th>Status</th><th class="num">Pts</th>';
-    rowf=function(r){return '<td><span class="'+posCls(r.pos)+'">'+r.posText+'</span></td>'
-      +'<td>'+dot(r.constructorId)+'<b>'+r.code+'</b> '+r.given+' '+r.family+'</td>'
-      +'<td>'+shortTeam(r.constructor)+'</td><td class="num">'+(r.grid==null?'–':r.grid)+'</td>'
-      +'<td>'+(r.status||'')+'</td><td class="num">'+(r.points||0)+'</td>';};
-  } else {
-    head='<th>Pos</th><th>Driver</th><th>Team</th><th class="num">Grid</th><th class="num">Laps</th><th>Time / Status</th><th class="num">Pts</th><th class="num">Fastest</th>';
-    rowf=function(r){return '<td><span class="'+posCls(r.pos)+'">'+r.posText+'</span></td>'
-      +'<td>'+dot(r.constructorId)+'<b>'+r.code+'</b> '+r.given+' '+r.family+'</td>'
-      +'<td>'+shortTeam(r.constructor)+'</td><td class="num">'+(r.grid==null?'–':r.grid)+'</td>'
-      +'<td class="num">'+(r.laps==null?'–':r.laps)+'</td>'
-      +'<td>'+(r.time||r.status||'')+'</td><td class="num">'+(r.points||0)+'</td>'
-      +'<td class="num">'+(r.fastestLap||'–')+'</td>';};
-  }
-  var rows=race.results.filter(function(r){return !flt||((r.family+' '+r.given+' '+r.code).toLowerCase().indexOf(flt)>=0);})
-    .map(function(r){return '<tr>'+rowf(r)+'</tr>';}).join('');
-  // fixed layout + shared colgroup → Pos/Driver/Team align across all three tabs
-  var cg='<colgroup><col style="width:54px"><col style="width:32%"><col style="width:20%"></colgroup>';
-  wrap.innerHTML='<table class="std-table" style="table-layout:fixed">'+cg+'<thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table>';
+var D=PAGE_DATA(), MX=D.mx, AX=D.ax, CAT='Race';
+
+/* ---------- season matrix ---------- */
+function setCat(b){CAT=b.dataset.cat;[].forEach.call(b.parentNode.children,function(x){x.classList.toggle('active',x===b);});renderMatrix();}
+function cellHTML(c){
+  if(!c) return '<td class="rc rc-none">–</td>';
+  var sup=(c.p!=null)?'<sup>'+c.p+'</sup>':'';
+  return '<td class="rc rc-'+c.k+'">'+c.t+sup+'</td>';
 }
-document.getElementById('rsel').value=document.getElementById('rsel').options[document.getElementById('rsel').options.length-1].value;
-render();
+function renderMatrix(){
+  var cells=MX.cells[CAT]||{}, hasPts=(CAT==='Race'||CAT==='Sprint');
+  var head=MX.rounds.map(function(r){
+    return '<th class="rmx-race'+(r.sprint?' sprint':'')+'" title="R'+r.r+' · '+r.name+'">'
+      +'<span class="rmx-fl">'+r.flag+'</span><span class="rmx-rnd">R'+r.r+(r.sprint?'·S':'')+'</span></th>';
+  }).join('');
+  var ptsH=hasPts?'<th class="rmx-pts-h">Pts</th>':'';
+  var body=MX.drivers.map(function(d){
+    var tot=0;
+    var tds=MX.rounds.map(function(r){var c=(cells[r.r]||{})[d.did]; if(c&&c.p)tot+=c.p; return cellHTML(c);}).join('');
+    var ptsC=hasPts?'<td class="rmx-pts">'+tot+'</td>':'';
+    return '<tr><td class="rmx-drv"><span class="pos">'+d.cpos+'</span>'
+      +'<span class="teamdot" style="--c:'+d.color+'"></span><b>'+d.code+'</b>'
+      +'<span class="rmx-sur">'+d.fam+'</span></td>'+tds+ptsC+'</tr>';
+  }).join('');
+  document.getElementById('mxwrap').innerHTML=
+    '<table class="results-matrix"><thead><tr><th class="rmx-drv-h">Driver</th>'+head+ptsH
+    +'</tr></thead><tbody>'+body+'</tbody></table>';
+}
+
+/* ---------- chart helpers ---------- */
+function quart(a){a=a.slice().sort(function(x,y){return x-y;});var n=a.length;
+  function q(p){var i=(n-1)*p,lo=Math.floor(i),hi=Math.ceil(i);return a[lo]+(a[hi]-a[lo])*(i-lo);}
+  var q1=q(.25),med=q(.5),q3=q(.75),iqr=q3-q1,loF=q1-1.5*iqr,hiF=q3+1.5*iqr;
+  var inl=a.filter(function(x){return x>=loF&&x<=hiF;});
+  return {q1:q1,med:med,q3:q3,wlo:inl.length?inl[0]:a[0],whi:inl.length?inl[inl.length-1]:a[n-1],
+          out:a.filter(function(x){return x<loF||x>hiF;})};}
+function svg(w,h,inner){return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="xMidYMid meet" class="ch-svg">'+inner+'</svg>';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
+/* ---------- box chart (drivers / teams) ---------- */
+function boxChart(elId, groups){
+  var el=document.getElementById(elId);
+  if(!groups.length){el.innerHTML='<div class="ch-empty">No lap data.</div>';return;}
+  var W=Math.max(700, groups.length*82+96), H=400, L=58, R=18, T=16, B=64;
+  var all=[]; groups.forEach(function(g){all.push(g.stats.wlo,g.stats.whi); g.stats.out.forEach(function(o){all.push(o);});});
+  var lo=Math.min.apply(null,all), hi=Math.max.apply(null,all), pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
+  var pw=W-L-R, ph=H-T-B;
+  function Y(v){return T+ph*(1-(v-lo)/(hi-lo));}
+  var g='';
+  for(var i=0;i<=5;i++){var v=lo+(hi-lo)*i/5,y=Y(v);
+    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/>';
+    g+='<text x="'+(L-8)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  var bw=Math.min(44, pw/groups.length*0.5);
+  groups.forEach(function(gr,idx){
+    var cx=L+pw*(idx+0.5)/groups.length, s=gr.stats, c=gr.color;
+    g+='<line x1="'+cx+'" y1="'+Y(s.wlo)+'" x2="'+cx+'" y2="'+Y(s.whi)+'" class="ch-whisk"/>';
+    g+='<line x1="'+(cx-bw*0.3)+'" y1="'+Y(s.wlo)+'" x2="'+(cx+bw*0.3)+'" y2="'+Y(s.wlo)+'" class="ch-whisk"/>';
+    g+='<line x1="'+(cx-bw*0.3)+'" y1="'+Y(s.whi)+'" x2="'+(cx+bw*0.3)+'" y2="'+Y(s.whi)+'" class="ch-whisk"/>';
+    g+='<rect x="'+(cx-bw/2)+'" y="'+Y(s.q3)+'" width="'+bw+'" height="'+Math.max(1,Y(s.q1)-Y(s.q3))+'" fill="'+c+'" fill-opacity="0.34" stroke="'+c+'"/>';
+    g+='<line x1="'+(cx-bw/2)+'" y1="'+Y(s.med)+'" x2="'+(cx+bw/2)+'" y2="'+Y(s.med)+'" stroke="#fff" stroke-width="2"/>';
+    s.out.forEach(function(o){g+='<circle cx="'+cx+'" cy="'+Y(o)+'" r="2.3" fill="'+c+'" fill-opacity="0.85"/>';});
+    g+='<text x="'+cx+'" y="'+(H-B+20)+'" class="ch-xlab" text-anchor="middle" transform="rotate(35 '+cx+' '+(H-B+20)+')">'+esc(gr.label)+'</text>';
+  });
+  g+='<text x="15" y="'+(T+ph/2)+'" class="ch-axtitle" transform="rotate(-90 15 '+(T+ph/2)+')" text-anchor="middle">Lap Time (s)</text>';
+  el.innerHTML=svg(W,H,g);
+}
+
+/* ---------- race position chart ---------- */
+function posChart(elId, drivers, totalLaps){
+  var el=document.getElementById(elId);
+  var maxP=20; drivers.forEach(function(d){d.pos.forEach(function(p){if(p[1]>maxP)maxP=p[1];});});
+  var W=Math.max(720, totalLaps*15+150), H=440, L=42, R=124, T=14, B=40;
+  var pw=W-L-R, ph=H-T-B, span=Math.max(1,totalLaps-1);
+  function X(l){return L+pw*(l-1)/span;}
+  function Y(p){return T+ph*(p-1)/(maxP-1);}
+  var g='';
+  for(var p=1;p<=maxP;p+=(maxP>20?5:5)){var y=Y(p);
+    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/>';
+    g+='<text x="'+(L-6)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+p+'</text>';}
+  for(var l=10;l<=totalLaps;l+=10){var x=X(l);
+    g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(H-B)+'" class="ch-grid"/>';
+    g+='<text x="'+x+'" y="'+(H-B+16)+'" class="ch-xlab" text-anchor="middle">'+l+'</text>';}
+  drivers.forEach(function(d){
+    if(!d.pos.length)return;
+    var pts=d.pos.map(function(p){return X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);}).join(' ');
+    g+='<polyline points="'+pts+'" fill="none" stroke="'+d.color+'" stroke-width="1.6" stroke-opacity="0.92"/>';
+    var last=d.pos[d.pos.length-1];
+    g+='<text x="'+(X(last[0])+5)+'" y="'+(Y(last[1])+3)+'" class="ch-tag" fill="'+d.color+'">'+d.code+'</text>';
+  });
+  g+='<text x="'+(L+pw/2)+'" y="'+(H-3)+'" class="ch-axtitle" text-anchor="middle">Lap</text>';
+  el.innerHTML=svg(W,H,g);
+}
+
+/* ---------- tyre strategy gantt ---------- */
+var TYRE={SOFT:'#E1112A',MEDIUM:'#F3D34A',HARD:'#E6E6E6',INTERMEDIATE:'#42A65A',WET:'#3A74D0'};
+function tyreTxt(c){return (c==='HARD'||c==='MEDIUM')?'#15151E':'#fff';}
+function tyreChart(elId, drivers, totalLaps){
+  var rows=drivers.filter(function(d){return d.stints.length;}).sort(function(a,b){return a.fin-b.fin;});
+  var rowH=22, gap=6, L=52, R=18, T=10, B=30, W=1010;
+  var ph=rows.length*(rowH+gap), H=T+ph+B, pw=W-L-R;
+  function X(l){return L+pw*l/Math.max(1,totalLaps);}
+  var g='';
+  for(var l=0;l<=totalLaps;l+=6){var x=X(l);
+    g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(T+ph)+'" class="ch-grid"/>';
+    g+='<text x="'+x+'" y="'+(T+ph+16)+'" class="ch-xlab" text-anchor="middle">'+l+'</text>';}
+  rows.forEach(function(d,i){
+    var y=T+i*(rowH+gap);
+    g+='<text x="'+(L-8)+'" y="'+(y+rowH*0.7)+'" class="ch-row" text-anchor="end">'+d.code+'</text>';
+    d.stints.forEach(function(s){
+      var c=s[0], x0=X(s[1]-1), w=X(s[2])-x0, col=TYRE[c]||'#777', n=s[2]-s[1]+1;
+      g+='<rect x="'+x0.toFixed(1)+'" y="'+y+'" width="'+Math.max(1,w).toFixed(1)+'" height="'+rowH+'" rx="3" fill="'+col+'"/>';
+      if(w>40) g+='<text x="'+(x0+w/2).toFixed(1)+'" y="'+(y+rowH*0.68)+'" class="ch-stint" fill="'+tyreTxt(c)+'" text-anchor="middle">'+(s[1]-1)+'-'+s[2]+' ('+n+')</text>';
+    });
+  });
+  document.getElementById(elId).innerHTML=svg(W,H,g);
+}
+
+/* ---------- per-race orchestration ---------- */
+function renderAX(){
+  var rd=document.getElementById('axsel').value, R=AX.data[rd];
+  if(!R){return;}
+  var drv=R.drivers;
+  var top=drv.filter(function(d){return d.laps&&d.laps.length>=3;}).sort(function(a,b){return a.fin-b.fin;}).slice(0,10);
+  boxChart('ch-box', top.map(function(d){return {label:d.code,color:d.color,stats:quart(d.laps)};}));
+  posChart('ch-pos', drv, R.total_laps);
+  var teams={};
+  drv.forEach(function(d){ if(!d.laps||!d.laps.length||!d.cid)return;
+    if(!teams[d.cid]) teams[d.cid]={laps:[],color:d.color,name:d.team};
+    teams[d.cid].laps=teams[d.cid].laps.concat(d.laps);});
+  var tg=Object.keys(teams).map(function(k){return {label:teams[k].name,color:teams[k].color,stats:quart(teams[k].laps)};})
+    .sort(function(a,b){return a.stats.med-b.stats.med;});
+  boxChart('ch-pace', tg);
+  tyreChart('ch-tyre', drv, R.total_laps);
+}
+
+renderMatrix();
+var sel=document.getElementById('axsel');
+if(sel&&sel.options.length){sel.value=sel.options[sel.options.length-1].value; renderAX();}
 """
-    return page("PITWALL F1 · Results & Standings", "Results", body, data=payload, js=js)
+    return page("PITWALL F1 · Results", "Results", body, data=payload, js=js)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

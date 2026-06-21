@@ -330,6 +330,30 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .rmx-legend .rmx-note{color:#6f6f78;font-size:11px}
 .rmx-legend .rmx-note sup{font-family:'JetBrains Mono'}
 
+/* ── Race-analysis charts (hand-rolled SVG) ─────────────────────────────── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+.card-chart{border:1px solid var(--outline-2);border-radius:var(--r-lg);
+  background:linear-gradient(180deg,#14141b,#0e0e13);padding:16px 16px 12px;margin-bottom:16px}
+.ch-title{font-family:'Titillium Web';font-weight:700;font-size:13px;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--lime);text-align:center;margin-bottom:10px}
+.ch-host{overflow-x:auto}
+.ch-svg{width:100%;height:auto;display:block;min-width:480px}
+.ch-grid{stroke:rgba(255,255,255,.08);stroke-width:1}
+.ch-ylab,.ch-xlab{fill:#8a8a93;font-family:'JetBrains Mono';font-size:10px}
+.ch-axtitle{fill:#9a9aa3;font-family:'Titillium Web';font-size:11px;letter-spacing:.05em}
+.ch-whisk{stroke:#9a9aa3;stroke-width:1.3}
+.ch-row{fill:#d7d5de;font-family:'JetBrains Mono';font-weight:700;font-size:11px}
+.ch-tag{font-family:'JetBrains Mono';font-weight:700;font-size:10px}
+.ch-stint{font-family:'JetBrains Mono';font-weight:700;font-size:9.5px}
+.ch-empty{color:var(--muted);text-align:center;padding:40px 0;font-size:13px}
+.tyre-key{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-bottom:8px;
+  font-family:'Titillium Web';font-size:12px;color:var(--muted)}
+.tyre-key span{display:inline-flex;align-items:center;gap:6px}
+.tyre-key i{width:14px;height:14px;border-radius:3px;display:inline-block}
+.toolbar select{background:var(--l1);color:var(--on);border:1px solid var(--outline);
+  border-radius:8px;padding:8px 12px;font-family:'Titillium Web';font-size:14px;min-width:240px}
+
 /* ── page scaffolding ───────────────────────────────────────────────────── */
 main{padding:28px 0 80px}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;

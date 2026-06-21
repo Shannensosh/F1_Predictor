@@ -957,14 +957,29 @@ def main():
     d["evo_rounds"], d["evo"] = rounds, evo
     d["stats"] = compute_stats(d["results"], d["quali"], d["sprint"], d["standings"])
     d["incidents"] = compute_incidents(d["results"], d["standings"])
+    d["race_analytics"] = _load_opt("race_analytics.json", {})
 
     ctx = {"page": page, "esc": esc, "flag": flag, "dbadge": dbadge,
            "bar_row": bar_row, "team_color": team_color, "team_dot": team_dot,
            "line_chart": line_chart, "short_team": short_team, "C": C}
 
+    # per-race analytics (Results tab) — extract any round missing from the
+    # cache (incremental; FastF1). Existing rounds are skipped inside the script.
+    completed = max((r["round"] for r in d["results"].get("2026", [])), default=0)
+    have_ax = set(d["race_analytics"].keys())
+    want_ax = {str(r["round"]) for r in d["results"].get("2026", [])}
+    if want_ax - have_ax:
+        print(f"» extracting race analytics for {sorted(want_ax - have_ax)} (f1_analytics)")
+        try:
+            import subprocess
+            subprocess.run([sys.executable, os.path.join(HERE, "f1_analytics.py")],
+                           check=True, timeout=3600)
+            d["race_analytics"] = _load_opt("race_analytics.json", {})
+        except Exception as e:  # noqa: BLE001 — keep whatever we already had
+            print("   ! analytics extraction failed:", e)
+
     # live page = the f1-race-replay browser port, fed by the baked replay of
     # the latest Grand Prix (f1_prebake.py). Re-bake if it's stale.
-    completed = max((r["round"] for r in d["results"].get("2026", [])), default=0)
     replay = _load_opt("replay_race.json", None)
     if completed and (replay is None or replay.get("meta", {}).get("round") != completed):
         print(f"» baking replay for round {completed} (f1_prebake)")
@@ -987,8 +1002,8 @@ def main():
         "schedule.html": build_schedule(d),
         "results.html": build_results(d, ctx),
         "standings.html": ('<!DOCTYPE html><meta charset="utf-8">'
-                           '<meta http-equiv="refresh" content="0; url=results.html#standings">'
-                           '<a href="results.html#standings">Standings moved → Results &amp; Standings</a>'),
+                           '<meta http-equiv="refresh" content="0; url=dashboard.html">'
+                           '<a href="dashboard.html">Standings are on the dashboard →</a>'),
         "drivers.html": build_drivers(d),
         "driver-stats.html": build_stats(d, ctx),
         "prediction.html": build_prediction(d, ctx),
