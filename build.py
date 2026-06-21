@@ -525,15 +525,26 @@ def build_overview(d):
     PLACE = {1: "1ST PLACE", 2: "2ND PLACE", 3: "3RD PLACE"}
 
     # ── drivers' championship: FINALISTS-style image-back cards + rest ───────
-    def _custom_driver_img(did):
-        for ext in ("jpg", "jpeg", "png", "webp", "avif"):
-            if os.path.exists(os.path.join(SITE, "assets", "drivers", f"{did}.{ext}")):
-                return f"assets/drivers/{did}.{ext}"
+    # index whatever the user dropped in site/assets/drivers/ (any filename that
+    # contains the driver's surname / id / code works — e.g. lewishamilton.jpg)
+    _norm = lambda s: "".join(ch for ch in s.lower() if ch.isalnum())
+    _drv_dir = os.path.join(SITE, "assets", "drivers")
+    _drv_files = []
+    if os.path.isdir(_drv_dir):
+        for fn in os.listdir(_drv_dir):
+            if fn.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".avif")):
+                _drv_files.append((_norm(os.path.splitext(fn)[0]), fn))
+
+    def _custom_driver_img(x):
+        fam = _norm(x["family"]); did = _norm(x["driverId"]); code = _norm(x.get("code") or "")
+        for stem, fn in _drv_files:
+            if (len(fam) >= 4 and fam in stem) or stem == did or (code and stem == code):
+                return f"assets/drivers/{fn}"
         return None
 
     def fin_driver(x):
         did = x["driverId"]
-        custom = _custom_driver_img(did)        # drop a cockpit/action shot here
+        custom = _custom_driver_img(x)          # drop a cockpit/action shot here
         if custom:
             bg = f'<img class="fin-bg cover" src="{esc(custom)}" alt="" loading="lazy">'
         else:
