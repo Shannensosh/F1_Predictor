@@ -82,14 +82,65 @@ def build_results(d, ctx):
     }
 
     # ── per-race analytics (charts) ─────────────────────────────────────────
-    fin_by_round = {}
-    for race in results.get("2026", []):
-        fin_by_round[race["round"]] = {
-            x["code"]: (x["pos"] if isinstance(x["pos"], int) else 99) for x in race["results"]}
+    res_by_round = {r["round"]: r for r in results.get("2026", [])}
+    quali_by_round = {q["round"]: q for q in quali.get("2026", [])}
+    fin_by_round = {rno: {x["code"]: (x["pos"] if isinstance(x["pos"], int) else 99)
+                          for x in r["results"]} for rno, r in res_by_round.items()}
+
+    def race_overview(rno):
+        race = res_by_round.get(rno)
+        if not race:
+            return None
+        rows = race["results"]
+        p1 = next((x for x in rows if x["pos"] == 1), None)
+        p2 = next((x for x in rows if x["pos"] == 2), None)
+        fl = next((x for x in rows if str(x.get("fastestRank")) == "1"), None)
+        q = quali_by_round.get(rno, {})
+        pole = next((x for x in (q.get("results") or []) if x["pos"] == 1), None)
+        mover = None
+        for x in rows:
+            if isinstance(x["pos"], int) and x.get("grid"):
+                gain = x["grid"] - x["pos"]
+                if mover is None or gain > mover[0]:
+                    mover = (gain, x["code"])
+        dnf = [x for x in rows if not _is_finisher(x.get("status") or "")]
+        total = len(rows)
+        won_pole = bool(p1 and pole and p1["code"] == pole["code"])
+        return {
+            "winner": p1["code"] if p1 else "—",
+            "winnerTeam": short_team(p1["constructor"]) if p1 else "",
+            "winnerColor": team_color(p1["constructorId"]) if p1 else "#888",
+            "wonFrom": (p1.get("grid") if p1 else None),
+            "pole": pole["code"] if pole else "—",
+            "poleColor": team_color(pole["constructorId"]) if pole else "#888",
+            "poleNote": ("Converted to win" if won_pole else "Lost the lead") if pole else "No qualifying",
+            "margin": (p2.get("time") if (p2 and p2.get("time")) else "—"),
+            "fl": fl["code"] if fl else "—",
+            "flColor": team_color(fl["constructorId"]) if fl else "#888",
+            "flTime": (fl.get("fastestLap") or "") if fl else "",
+            "mover": mover[1] if mover else "—",
+            "moverGain": mover[0] if mover else 0,
+            "dnfs": len(dnf), "classified": total - len(dnf), "total": total,
+        }
+
+    def progression(rno):
+        race = res_by_round.get(rno)
+        if not race:
+            return []
+        qpos = {x["code"]: x["pos"] for x in (quali_by_round.get(rno, {}).get("results") or [])}
+        out = []
+        for x in race["results"]:
+            if not isinstance(x["pos"], int):
+                continue
+            out.append({"code": x["code"], "color": team_color(x["constructorId"]),
+                        "q": qpos.get(x["code"]), "g": (x.get("grid") or None), "r": x["pos"]})
+        return out
+
     ax_rounds, ax_data = [], {}
     for rnd in sorted(analytics, key=int):
         b = analytics[rnd]
-        fin = fin_by_round.get(int(rnd), {})
+        rno = int(rnd)
+        fin = fin_by_round.get(rno, {})
         adrv = []
         for code, rd in b.get("race", {}).items():
             did = code2did.get(code)
@@ -106,8 +157,9 @@ def build_results(d, ctx):
                 "pos": rd.get("pos", []),
                 "stints": rd.get("stints", []),
             })
-        ax_data[rnd] = {"total_laps": b.get("total_laps", 0), "drivers": adrv}
-        ax_rounds.append({"r": int(rnd), "name": esc(b.get("raceName", f"Round {rnd}"))})
+        ax_data[rnd] = {"total_laps": b.get("total_laps", 0), "drivers": adrv,
+                        "ov": race_overview(rno), "prog": progression(rno)}
+        ax_rounds.append({"r": rno, "name": esc(b.get("raceName", f"Round {rnd}"))})
     ax = {"rounds": ax_rounds, "data": ax_data}
 
     payload = {"mx": mx, "ax": ax}
@@ -134,25 +186,49 @@ def build_results(d, ctx):
     {legend}"""
 
     ropts = "".join(f'<option value="{r["r"]}">R{r["r"]} · {r["name"]}</option>' for r in ax_rounds)
-    analysis = f"""
-    <div class="sec-head" style="margin-top:40px"><h2>Race Analysis</h2>
-      <div class="sec-sub">Lap-time pace, on-track position swings and tyre strategy for any Grand Prix</div></div>
-    <div class="toolbar"><select id="axsel" onchange="renderAX()">{ropts}</select></div>
-    <div class="chart-grid">
-      <div class="card-chart"><div class="ch-title">Lap Time Distribution · Top 10</div><div class="ch-host" id="ch-box"></div></div>
-      <div class="card-chart"><div class="ch-title">Race Position Changes</div><div class="ch-host" id="ch-pos"></div></div>
-    </div>
-    <div class="card-chart"><div class="ch-title">Team Pace · Median Lap</div><div class="ch-host" id="ch-pace"></div></div>
-    <div class="card-chart"><div class="ch-title">Tyre Strategies</div>
-      <div class="tyre-key">
+    tyre_key = """<div class="tyre-key">
         <span><i style="background:#E1112A"></i>Soft</span><span><i style="background:#F3D34A"></i>Medium</span>
         <span><i style="background:#E6E6E6"></i>Hard</span><span><i style="background:#42A65A"></i>Inter</span>
-        <span><i style="background:#3A74D0"></i>Wet</span></div>
-      <div class="ch-host" id="ch-tyre"></div></div>"""
+        <span><i style="background:#3A74D0"></i>Wet</span></div>"""
+    sankey_key = """<div class="tyre-key">
+        <span><i style="background:#27D45F"></i>Gained</span><span><i style="background:#E1112A"></i>Lost</span>
+        <span><i style="background:#3671C6"></i>Same</span></div>"""
+    analysis = f"""
+    <div class="sec-head" style="margin-top:40px"><h2>Race Analysis</h2>
+      <div class="sec-sub">Race summary, on-track swings, pace and tyre strategy for any Grand Prix</div></div>
+    <div class="toolbar"><select id="axsel" onchange="renderAX()">{ropts}</select></div>
+
+    <div class="ana-sec">Race Summary</div>
+    <div class="ov-grid" id="ov-grid"></div>
+
+    <div class="ana-sec">Positions</div>
+    <div class="chart-grid">
+      <div class="card-chart" data-zoom><div class="ch-title">Race Position Changes</div><div class="ch-host" id="ch-pos"></div></div>
+      <div class="card-chart" data-zoom><div class="ch-title">Qualifying → Grid → Race</div>{sankey_key}<div class="ch-host" id="ch-sankey"></div></div>
+    </div>
+
+    <div class="ana-sec">Pacing</div>
+    <div class="chart-grid">
+      <div class="card-chart" data-zoom><div class="ch-title">Lap Time Distribution · Top 10</div><div class="ch-host" id="ch-box"></div></div>
+      <div class="card-chart" data-zoom><div class="ch-title">Team Pace · Median Lap</div><div class="ch-host" id="ch-pace"></div></div>
+    </div>
+
+    <div class="ana-sec">Tyre</div>
+    <div class="chart-grid">
+      <div class="card-chart" data-zoom><div class="ch-title">Tyre Strategies</div>{tyre_key}<div class="ch-host" id="ch-tyre"></div></div>
+      <div class="card-chart" data-zoom><div class="ch-title">Tyre Age per Lap</div><div class="ch-host" id="ch-tyreage"></div></div>
+    </div>
+
+    <div class="ch-modal" id="ch-modal" onclick="closeZoom(event)">
+      <div class="ch-modal-inner" onclick="event.stopPropagation()">
+        <div class="ch-modal-bar"><span id="ch-modal-title"></span>
+          <button class="ch-close" onclick="closeZoom(event)">✕ Close</button></div>
+        <div class="ch-modal-host" id="ch-modal-host"></div></div>
+    </div>"""
 
     body = ('<div class="page-head"><div><h1>Results</h1>'
             '<p>Every driver and every session of the 2026 season — finishing positions and points, '
-            'then a per-race breakdown of pace, position changes and tyre strategy.</p></div></div>'
+            'then a per-race breakdown: race summary, position changes, pace and tyre strategy.</p></div></div>'
             + season + analysis)
 
     js = r"""
@@ -214,7 +290,7 @@ function boxChart(elId, groups){
     g+='<line x1="'+cx+'" y1="'+Y(s.wlo)+'" x2="'+cx+'" y2="'+Y(s.whi)+'" class="ch-whisk"/>';
     g+='<line x1="'+(cx-bw*0.3)+'" y1="'+Y(s.wlo)+'" x2="'+(cx+bw*0.3)+'" y2="'+Y(s.wlo)+'" class="ch-whisk"/>';
     g+='<line x1="'+(cx-bw*0.3)+'" y1="'+Y(s.whi)+'" x2="'+(cx+bw*0.3)+'" y2="'+Y(s.whi)+'" class="ch-whisk"/>';
-    g+='<rect x="'+(cx-bw/2)+'" y="'+Y(s.q3)+'" width="'+bw+'" height="'+Math.max(1,Y(s.q1)-Y(s.q3))+'" fill="'+c+'" fill-opacity="0.34" stroke="'+c+'"/>';
+    g+='<rect x="'+(cx-bw/2)+'" y="'+Y(s.q3)+'" width="'+bw+'" height="'+Math.max(1,Y(s.q1)-Y(s.q3))+'" fill="'+c+'" fill-opacity="0.34" stroke="'+c+'"><title>'+esc(gr.label)+' — median '+s.med.toFixed(2)+'s · Q1 '+s.q1.toFixed(2)+' / Q3 '+s.q3.toFixed(2)+'</title></rect>';
     g+='<line x1="'+(cx-bw/2)+'" y1="'+Y(s.med)+'" x2="'+(cx+bw/2)+'" y2="'+Y(s.med)+'" stroke="#fff" stroke-width="2"/>';
     s.out.forEach(function(o){g+='<circle cx="'+cx+'" cy="'+Y(o)+'" r="2.3" fill="'+c+'" fill-opacity="0.85"/>';});
     g+='<text x="'+cx+'" y="'+(H-B+20)+'" class="ch-xlab" text-anchor="middle" transform="rotate(35 '+cx+' '+(H-B+20)+')">'+esc(gr.label)+'</text>';
@@ -241,8 +317,8 @@ function posChart(elId, drivers, totalLaps){
   drivers.forEach(function(d){
     if(!d.pos.length)return;
     var pts=d.pos.map(function(p){return X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);}).join(' ');
-    g+='<polyline points="'+pts+'" fill="none" stroke="'+d.color+'" stroke-width="1.6" stroke-opacity="0.92"/>';
     var last=d.pos[d.pos.length-1];
+    g+='<polyline points="'+pts+'" fill="none" stroke="'+d.color+'" stroke-width="1.6" stroke-opacity="0.92"><title>'+d.code+' — finished P'+last[1]+'</title></polyline>';
     g+='<text x="'+(X(last[0])+5)+'" y="'+(Y(last[1])+3)+'" class="ch-tag" fill="'+d.color+'">'+d.code+'</text>';
   });
   g+='<text x="'+(L+pw/2)+'" y="'+(H-3)+'" class="ch-axtitle" text-anchor="middle">Lap</text>';
@@ -266,21 +342,128 @@ function tyreChart(elId, drivers, totalLaps){
     g+='<text x="'+(L-8)+'" y="'+(y+rowH*0.7)+'" class="ch-row" text-anchor="end">'+d.code+'</text>';
     d.stints.forEach(function(s){
       var c=s[0], x0=X(s[1]-1), w=X(s[2])-x0, col=TYRE[c]||'#777', n=s[2]-s[1]+1;
-      g+='<rect x="'+x0.toFixed(1)+'" y="'+y+'" width="'+Math.max(1,w).toFixed(1)+'" height="'+rowH+'" rx="3" fill="'+col+'"/>';
+      g+='<rect x="'+x0.toFixed(1)+'" y="'+y+'" width="'+Math.max(1,w).toFixed(1)+'" height="'+rowH+'" rx="3" fill="'+col+'"><title>'+d.code+' — '+c+' · laps '+(s[1]-1)+'-'+s[2]+' ('+n+')</title></rect>';
       if(w>40) g+='<text x="'+(x0+w/2).toFixed(1)+'" y="'+(y+rowH*0.68)+'" class="ch-stint" fill="'+tyreTxt(c)+'" text-anchor="middle">'+(s[1]-1)+'-'+s[2]+' ('+n+')</text>';
     });
   });
   document.getElementById(elId).innerHTML=svg(W,H,g);
 }
 
+/* ---------- race-overview stat tiles ---------- */
+var IC={
+ trophy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>',
+ flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></svg>',
+ timer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6M19 5l1.5-1.5"/></svg>',
+ gauge:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14a9 9 0 0 1 18 0M12 14l4-3"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/></svg>',
+ up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'
+};
+function ovTile(icon,fig,cls,label,sub){
+  return '<div class="stat-tile ov-tile"><div class="st-icon">'+icon+'</div>'
+    +'<div class="st-fig '+(cls||'')+'">'+fig+'</div><div class="st-label">'+label+'</div>'
+    +'<div class="st-name">'+(sub||'')+'</div></div>';
+}
+function renderOverview(ov){
+  var el=document.getElementById('ov-grid');
+  if(!ov){el.innerHTML='';return;}
+  el.innerHTML=
+    ovTile(IC.trophy, ov.winner, 'red', 'Winner', ov.winnerTeam)
+   +ovTile(IC.flag, ov.pole, 'wht', 'Pole', ov.poleNote)
+   +ovTile(IC.timer, ov.margin, 'wht', 'Win Margin', 'gap to P2')
+   +ovTile(IC.gauge, ov.fl, 'red', 'Fastest Lap', ov.flTime)
+   +ovTile(IC.up, (ov.moverGain>0?'+':'')+ov.moverGain, 'grn', 'Biggest Mover', ov.mover)
+   +ovTile(IC.x, ''+ov.dnfs, (ov.dnfs?'red':'wht'), 'DNFs', ov.classified+'/'+ov.total+' classified');
+}
+
+/* ---------- sankey: qualifying -> grid -> race ---------- */
+function skBand(x0,y0,x1,y1,h,color,tip){
+  var cx=(x0+x1)/2;
+  var d='M'+x0+','+(y0-h/2)+' C'+cx+','+(y0-h/2)+' '+cx+','+(y1-h/2)+' '+x1+','+(y1-h/2)
+    +' L'+x1+','+(y1+h/2)+' C'+cx+','+(y1+h/2)+' '+cx+','+(y0+h/2)+' '+x0+','+(y0+h/2)+' Z';
+  return '<path class="sk-band" d="'+d+'" fill="'+color+'" fill-opacity="0.42"><title>'+tip+'</title></path>';
+}
+function sankeyChart(elId, prog){
+  var el=document.getElementById(elId);
+  if(!prog||!prog.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
+  var n=prog.length, rowH=Math.max(16,Math.min(26,540/n)), nodeH=rowH*0.6, nodeW=11;
+  var T=34,B=12,W=960,Lx=92,Rx=W-92,Gx=(Lx+Rx)/2,H=T+B+n*rowH;
+  function Y(p){return T+(p-0.5)*rowH;}
+  function col(a,b){return b<a?'#27D45F':(b>a?'#E1112A':'#3671C6');}
+  var g='';
+  g+='<text x="'+Lx+'" y="20" class="sk-head" text-anchor="end">Qualifying</text>';
+  g+='<text x="'+Gx+'" y="20" class="sk-head" text-anchor="middle">Grid</text>';
+  g+='<text x="'+Rx+'" y="20" class="sk-head" text-anchor="start">Race</text>';
+  prog.forEach(function(d){
+    if(d.q!=null&&d.g!=null) g+=skBand(Lx+nodeW,Y(d.q),Gx-nodeW/2,Y(d.g),nodeH,col(d.q,d.g),d.code+': Q P'+d.q+' → Grid P'+d.g);
+    if(d.g!=null&&d.r!=null) g+=skBand(Gx+nodeW/2,Y(d.g),Rx-nodeW,Y(d.r),nodeH,col(d.g,d.r),d.code+': Grid P'+d.g+' → Race P'+d.r);
+  });
+  prog.forEach(function(d){
+    if(d.q!=null){g+='<rect x="'+Lx+'" y="'+(Y(d.q)-nodeH/2)+'" width="'+nodeW+'" height="'+nodeH+'" rx="2" fill="'+d.color+'"/>';
+      g+='<text x="'+(Lx-6)+'" y="'+(Y(d.q)+3)+'" class="sk-lab" text-anchor="end">P'+d.q+' '+d.code+'</text>';}
+    if(d.g!=null) g+='<rect x="'+(Gx-nodeW/2)+'" y="'+(Y(d.g)-nodeH/2)+'" width="'+nodeW+'" height="'+nodeH+'" rx="2" fill="'+d.color+'"/>';
+    if(d.r!=null){g+='<rect x="'+(Rx-nodeW)+'" y="'+(Y(d.r)-nodeH/2)+'" width="'+nodeW+'" height="'+nodeH+'" rx="2" fill="'+d.color+'"/>';
+      g+='<text x="'+(Rx+6)+'" y="'+(Y(d.r)+3)+'" class="sk-lab" text-anchor="start">P'+d.r+' '+d.code+'</text>';}
+  });
+  el.innerHTML=svg(W,H,g);
+}
+
+/* ---------- tyre age per lap ---------- */
+function tyreAgeChart(elId, drivers, totalLaps){
+  var el=document.getElementById(elId);
+  var series=drivers.filter(function(d){return d.stints.length;}).map(function(d){
+    var segs=d.stints.map(function(s){var p=[];for(var L=s[1];L<=s[2];L++)p.push([L,L-s[1]+1]);return p;});
+    return {code:d.code,color:d.color,segs:segs,last:d.stints[d.stints.length-1]};});
+  var maxA=1; series.forEach(function(s){s.segs.forEach(function(seg){seg.forEach(function(p){if(p[1]>maxA)maxA=p[1];});});});
+  var W=Math.max(720,totalLaps*15+150),H=400,L=44,R=120,T=14,B=40,pw=W-L-R,ph=H-T-B,span=Math.max(1,totalLaps-1);
+  function X(l){return L+pw*(l-1)/span;}
+  function Y(a){return T+ph*(1-a/maxA);}
+  var g='', step=Math.ceil(maxA/6)||1;
+  for(var a=0;a<=maxA;a+=step){var y=Y(a);
+    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/>';
+    g+='<text x="'+(L-6)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+a+'</text>';}
+  for(var l=10;l<=totalLaps;l+=10){var x=X(l);
+    g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(H-B)+'" class="ch-grid"/>';
+    g+='<text x="'+x+'" y="'+(H-B+16)+'" class="ch-xlab" text-anchor="middle">'+l+'</text>';}
+  series.forEach(function(s){
+    s.segs.forEach(function(seg){
+      if(seg.length<2 && seg.length)seg.push(seg[0]);
+      var pts=seg.map(function(p){return X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);}).join(' ');
+      g+='<polyline points="'+pts+'" fill="none" stroke="'+s.color+'" stroke-width="1.5" stroke-opacity="0.85"><title>'+s.code+'</title></polyline>';
+    });
+    var le=s.segs[s.segs.length-1], lp=le[le.length-1];
+    g+='<text x="'+(X(lp[0])+5)+'" y="'+(Y(lp[1])+3)+'" class="ch-tag" fill="'+s.color+'">'+s.code+'</text>';
+  });
+  g+='<text x="'+(L+pw/2)+'" y="'+(H-3)+'" class="ch-axtitle" text-anchor="middle">Lap</text>';
+  g+='<text x="14" y="'+(T+ph/2)+'" class="ch-axtitle" transform="rotate(-90 14 '+(T+ph/2)+')" text-anchor="middle">Tyre Age (laps)</text>';
+  el.innerHTML=svg(W,H,g);
+}
+
+/* ---------- click-to-zoom modal ---------- */
+function openZoom(card){
+  var host=card.querySelector('.ch-host'); if(!host||!host.innerHTML.trim())return;
+  var t=card.querySelector('.ch-title');
+  document.getElementById('ch-modal-title').textContent=t?t.textContent:'';
+  document.getElementById('ch-modal-host').innerHTML=host.innerHTML;
+  document.getElementById('ch-modal').classList.add('open');
+}
+function closeZoom(e){document.getElementById('ch-modal').classList.remove('open');}
+function attachZoom(){
+  [].forEach.call(document.querySelectorAll('.card-chart[data-zoom]'),function(c){
+    if(c._z)return; c._z=1; c.addEventListener('click',function(){openZoom(c);});
+  });
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeZoom();});
+
 /* ---------- per-race orchestration ---------- */
 function renderAX(){
   var rd=document.getElementById('axsel').value, R=AX.data[rd];
   if(!R){return;}
   var drv=R.drivers;
+  renderOverview(R.ov);
+  posChart('ch-pos', drv, R.total_laps);
+  sankeyChart('ch-sankey', R.prog);
   var top=drv.filter(function(d){return d.laps&&d.laps.length>=3;}).sort(function(a,b){return a.fin-b.fin;}).slice(0,10);
   boxChart('ch-box', top.map(function(d){return {label:d.code,color:d.color,stats:quart(d.laps)};}));
-  posChart('ch-pos', drv, R.total_laps);
   var teams={};
   drv.forEach(function(d){ if(!d.laps||!d.laps.length||!d.cid)return;
     if(!teams[d.cid]) teams[d.cid]={laps:[],color:d.color,name:d.team};
@@ -289,11 +472,13 @@ function renderAX(){
     .sort(function(a,b){return a.stats.med-b.stats.med;});
   boxChart('ch-pace', tg);
   tyreChart('ch-tyre', drv, R.total_laps);
+  tyreAgeChart('ch-tyreage', drv, R.total_laps);
 }
 
 renderMatrix();
 var sel=document.getElementById('axsel');
 if(sel&&sel.options.length){sel.value=sel.options[sel.options.length-1].value; renderAX();}
+attachZoom();
 """
     return page("PITWALL F1 · Results", "Results", body, data=payload, js=js)
 

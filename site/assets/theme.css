@@ -354,6 +354,47 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .toolbar select{background:var(--l1);color:var(--on);border:1px solid var(--outline);
   border-radius:8px;padding:8px 12px;font-family:'Titillium Web';font-size:14px;min-width:240px}
 
+/* section label inside Race Analysis */
+.ana-sec{font-family:'Titillium Web';font-weight:700;font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin:26px 0 12px;padding-bottom:7px;
+  border-bottom:1px solid var(--outline-2)}
+
+/* race-overview: 6 compact stat tiles in one row */
+.ov-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:8px}
+.ov-grid .ov-tile{padding:18px 12px 14px;gap:4px}
+.ov-grid .st-icon{width:32px;height:32px;margin-bottom:2px}
+.ov-grid .st-fig{font-size:34px}
+.ov-grid .st-fig.red{color:var(--lime)} .ov-grid .st-fig.grn{color:var(--green)}
+.ov-grid .st-fig.wht{color:#fff}
+.ov-grid .st-name{font-size:12px;font-weight:600;color:var(--muted);border-top:0;padding-top:6px;margin-top:4px}
+.ov-grid .st-label{font-size:10px}
+@media(max-width:1100px){.ov-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.ov-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* sankey */
+.sk-head{fill:#cfcdd6;font-family:'Titillium Web';font-weight:700;font-size:13px;letter-spacing:.04em}
+.sk-lab{fill:#b9b9c2;font-family:'JetBrains Mono';font-size:10px}
+.sk-band{transition:fill-opacity .12s} .sk-band:hover{fill-opacity:.8!important}
+
+/* clickable charts + zoom modal */
+.card-chart[data-zoom]{cursor:zoom-in;position:relative}
+.card-chart[data-zoom]::after{content:"⤢";position:absolute;top:12px;right:14px;color:var(--muted);
+  font-size:15px;opacity:.5;pointer-events:none}
+.card-chart[data-zoom]:hover::after{opacity:1;color:var(--lime)}
+.ch-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(6,6,9,.86);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);padding:3vh 3vw}
+.ch-modal.open{display:flex;align-items:center;justify-content:center}
+.ch-modal-inner{background:#101016;border:1px solid var(--outline);border-radius:var(--r-lg);
+  width:100%;max-width:1280px;max-height:94vh;display:flex;flex-direction:column;overflow:hidden}
+.ch-modal-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;
+  border-bottom:1px solid var(--outline-2);font-family:'Titillium Web';font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;font-size:13px;color:var(--lime)}
+.ch-close{background:var(--l1);border:1px solid var(--outline);color:var(--on);border-radius:7px;
+  padding:6px 12px;cursor:pointer;font-family:'Titillium Web';font-size:13px}
+.ch-close:hover{border-color:var(--lime);color:var(--lime)}
+.ch-modal-host{overflow:auto;padding:16px}
+.ch-modal-host svg{width:100%;height:auto;max-height:84vh;min-width:0}
+
 /* ── page scaffolding ───────────────────────────────────────────────────── */
 main{padding:28px 0 80px}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;
