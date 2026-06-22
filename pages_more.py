@@ -540,7 +540,7 @@ function avgTemp(d){if(!d.lapseq||!d.lapseq.length)return null;var med=medianOf(
 function radarChart(elId, top3, radar){
   var el=document.getElementById(elId);
   var axes=[['Consistency','consistency'],['Pace','pace'],['Qualifying','qualifying'],['Racecraft','racecraft'],['Tyre Mgmt','tiremgmt']];
-  var W=540,H=470,cx=W/2,cy=H/2+8,Rad=140,n=axes.length;
+  var W=900,H=480,cx=W/2,cy=H/2+12,Rad=168,n=axes.length;
   function pt(i,v){var a=-Math.PI/2+2*Math.PI*i/n,r=Rad*v/100;return [cx+Math.cos(a)*r,cy+Math.sin(a)*r];}
   var g='';
   [20,40,60,80,100].forEach(function(v){var poly=axes.map(function(_,i){var p=pt(i,v);return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
@@ -574,7 +574,7 @@ function evoChart(elId, top3){
   var el=document.getElementById(elId);
   var laps=[],times=[]; top3.forEach(function(d){(d.lapseq||[]).forEach(function(p){laps.push(p[0]);times.push(p[1]);});});
   if(!times.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
-  var W=1180,H=380,L=58,R=120,T=16,B=46,pw=W-L-R,ph=H-T-B;
+  var W=1180,H=305,L=58,R=120,T=16,B=46,pw=W-L-R,ph=H-T-B;
   var lmin=Math.min.apply(null,laps),lmax=Math.max.apply(null,laps);
   var tmin=Math.min.apply(null,times),tmax=Math.max.apply(null,times),tp=(tmax-tmin)*0.08||1;tmin-=tp;tmax+=tp;
   function X(l){return L+pw*(l-lmin)/Math.max(1,lmax-lmin);}
@@ -599,7 +599,7 @@ function sectorChart(elId, top3){
   var maxv=0; top3.forEach(function(d){(d.sectors||[]).forEach(function(s){if(s&&s>maxv)maxv=s;});});
   if(!maxv){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
   maxv*=1.12;
-  var W=560,H=470,L=48,R=14,T=42,B=58,pw=W-L-R,ph=H-T-B;
+  var W=900,H=480,L=56,R=56,T=44,B=64,pw=W-L-R,ph=H-T-B;
   function Y(v){return T+ph*(1-v/maxv);}
   var g='';
   for(var i=0;i<=4;i++){var v=maxv*i/4,y=Y(v);
@@ -619,7 +619,7 @@ function ttempChart(elId, top3){
   var el=document.getElementById(elId), pts=[];
   top3.forEach(function(d){var med=medianOf(d.laps); (d.lapseq||[]).forEach(function(p){var st=stintOf(d,p[0]); if(!st)return; pts.push({x:lapTemp(st[0],p[0]-st[1]+1,p[1],med),y:p[1],c:d.color,code:d.code});});});
   if(!pts.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
-  var W=560,H=470,L=52,R=14,T=42,B=50,pw=W-L-R,ph=H-T-B;
+  var W=900,H=480,L=56,R=56,T=44,B=58,pw=W-L-R,ph=H-T-B;
   var xs=pts.map(function(p){return p.x;}),ys=pts.map(function(p){return p.y;});
   var xmin=Math.min.apply(null,xs)-1,xmax=Math.max.apply(null,xs)+1;
   var ymin=Math.min.apply(null,ys),ymax=Math.max.apply(null,ys),yp=(ymax-ymin)*0.08||1;ymin-=yp;ymax+=yp;
