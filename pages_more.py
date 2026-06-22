@@ -136,6 +136,56 @@ def build_results(d, ctx):
                         "q": qpos.get(x["code"]), "g": (x.get("grid") or None), "r": x["pos"]})
         return out
 
+    def _median(a):
+        if not a:
+            return None
+        s = sorted(a); n = len(s); m = n // 2
+        return s[m] if n % 2 else (s[m - 1] + s[m]) / 2
+
+    def _stdev(a):
+        if len(a) < 2:
+            return 0.0
+        mu = sum(a) / len(a)
+        return (sum((x - mu) ** 2 for x in a) / len(a)) ** 0.5
+
+    def radar_round(rno, adrv):
+        """Five 0–100 driver-performance metrics, scaled across the race field."""
+        qpos = {x["code"]: x["pos"] for x in (quali_by_round.get(rno, {}).get("results") or [])}
+        grid = {x["code"]: x.get("grid") for x in res_by_round.get(rno, {}).get("results", [])}
+        N = len(res_by_round.get(rno, {}).get("results", [])) or 20
+        meds, stds, gains, slen = {}, {}, {}, {}
+        for x in adrv:
+            if x["laps"]:
+                meds[x["code"]] = _median(x["laps"]); stds[x["code"]] = _stdev(x["laps"])
+            g = grid.get(x["code"])
+            if g and isinstance(x["fin"], int) and x["fin"] <= N:
+                gains[x["code"]] = g - x["fin"]
+            if x["stints"]:
+                tot = x["stints"][-1][2] - x["stints"][0][1] + 1
+                slen[x["code"]] = tot / len(x["stints"])
+
+        def scale(dct, code, invert=False, lo=42):
+            if code not in dct or len(dct) < 2:
+                return 50.0
+            vals = list(dct.values()); mn, mx = min(vals), max(vals)
+            if mx == mn:
+                return 100.0
+            f = (dct[code] - mn) / (mx - mn)
+            if invert:
+                f = 1 - f
+            return round(lo + (100 - lo) * f, 1)
+        out = {}
+        for x in adrv:
+            c = x["code"]
+            out[c] = {
+                "pace": scale(meds, c, invert=True),
+                "consistency": scale(stds, c, invert=True),
+                "qualifying": round(100 - 70 * ((qpos.get(c, N) - 1) / max(1, N - 1)), 1) if qpos.get(c) else 50.0,
+                "racecraft": scale(gains, c),
+                "tiremgmt": scale(slen, c),
+            }
+        return out
+
     ax_rounds, ax_data = [], {}
     for rnd in sorted(analytics, key=int):
         b = analytics[rnd]
@@ -154,11 +204,15 @@ def build_results(d, ctx):
                 "color": team_color(cid) if cid else "#888",
                 "fin": fin.get(code, 99),
                 "laps": rd.get("laps", []),
+                "lapseq": rd.get("lapseq", []),
+                "sectors": rd.get("sectors", []),
+                "topspeed": rd.get("topspeed"),
                 "pos": rd.get("pos", []),
                 "stints": rd.get("stints", []),
             })
         ax_data[rnd] = {"total_laps": b.get("total_laps", 0), "drivers": adrv,
-                        "ov": race_overview(rno), "prog": progression(rno)}
+                        "ov": race_overview(rno), "prog": progression(rno),
+                        "radar": radar_round(rno, adrv)}
         ax_rounds.append({"r": rno, "name": esc(b.get("raceName", f"Round {rnd}"))})
     ax = {"rounds": ax_rounds, "data": ax_data}
 
@@ -223,6 +277,19 @@ def build_results(d, ctx):
         <div class="ch-host" id="ch-tyreage"></div></div>
     </div>
 
+    <div class="ana-sec" style="margin-top:34px">Top 3 Drivers</div>
+    <div class="chart-grid">
+      <div class="card-chart" data-zoom><div class="ch-title">Driver Performance Radar</div><div class="ch-host" id="ch-radar"></div></div>
+      <div class="card-chart"><div class="ch-title">Session Bests · Top 3</div><div class="ch-host t3-table-host" id="t3-table"></div></div>
+    </div>
+    <div class="card-chart" data-zoom><div class="ch-title">Lap Time Evolution · Top 3</div><div class="ch-host" id="ch-evo"></div></div>
+    <div class="chart-grid">
+      <div class="card-chart" data-zoom><div class="ch-title">Sector Time Comparison</div><div class="ch-host" id="ch-sector"></div></div>
+      <div class="card-chart" data-zoom><div class="ch-title">Tyre Temp vs Lap Time</div>
+        <div class="tyre-key"><span class="rmx-note">Tyre temperature is a modelled estimate (compound · stint age · pace) — not measured telemetry</span></div>
+        <div class="ch-host" id="ch-ttemp"></div></div>
+    </div>
+
     <div class="ch-modal" id="ch-modal" onclick="closeZoom(event)">
       <div class="ch-modal-inner" onclick="event.stopPropagation()">
         <div class="ch-modal-bar"><span id="ch-modal-title"></span>
@@ -279,7 +346,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 function boxChart(elId, groups){
   var el=document.getElementById(elId);
   if(!groups.length){el.innerHTML='<div class="ch-empty">No lap data.</div>';return;}
-  var W=900, H=480, L=56, R=72, T=16, B=72;
+  var W=900, H=480, L=56, R=56, T=16, B=72;
   var all=[]; groups.forEach(function(g){all.push(g.stats.wlo,g.stats.whi); g.stats.out.forEach(function(o){all.push(o);});});
   var lo=Math.min.apply(null,all), hi=Math.max.apply(null,all), pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
   var pw=W-L-R, ph=H-T-B;
@@ -307,7 +374,7 @@ function boxChart(elId, groups){
 function posChart(elId, drivers, totalLaps){
   var el=document.getElementById(elId);
   var maxP=20; drivers.forEach(function(d){d.pos.forEach(function(p){if(p[1]>maxP)maxP=p[1];});});
-  var W=900, H=480, L=56, R=72, T=16, B=72;
+  var W=900, H=480, L=56, R=56, T=16, B=72;
   var pw=W-L-R, ph=H-T-B, span=Math.max(1,totalLaps-1);
   function X(l){return L+pw*(l-1)/span;}
   function Y(p){return T+ph*(p-1)/(maxP-1);}
@@ -331,13 +398,13 @@ function posChart(elId, drivers, totalLaps){
 
 /* ---------- tyre data + helpers ---------- */
 var TYRE={SOFT:'#E1112A',MEDIUM:'#F3D34A',HARD:'#E6E6E6',INTERMEDIATE:'#42A65A',WET:'#3A74D0'};
-var TYRE_GRAD={SOFT:['#ff6470','#E1112A','#7d0a18'],MEDIUM:['#ffe98a','#F3D34A','#b2920f'],
- HARD:['#ffffff','#dadada','#8c8c8c'],INTERMEDIATE:['#63d77e','#42A65A','#1f6b33'],WET:['#5e93e2','#3A74D0','#1c4488']};
+var TYRE_GRAD={SOFT:['#4a0c14','#ff3b4b','#4a0c14'],MEDIUM:['#4a3e0a','#ffe24a','#4a3e0a'],
+ HARD:['#2c2c2c','#ffffff','#2c2c2c'],INTERMEDIATE:['#0e2e16','#4fd070','#0e2e16'],WET:['#0c1e3e','#4f8fe6','#0c1e3e']};
 var TYRE_OPT={SOFT:20,MEDIUM:30,HARD:42,INTERMEDIATE:28,WET:32};   // indicative optimal life (laps)
 var STOPW=['ZERO','ONE','TWO','THREE','FOUR','FIVE','SIX'];
 function tyreTxt(c){return (c==='HARD'||c==='MEDIUM')?'#15151E':'#fff';}
 function tyreDefs(){var s='<defs>';for(var k in TYRE_GRAD){var v=TYRE_GRAD[k];
-  s+='<linearGradient id="tg-'+k+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+v[0]+'"/>'
+  s+='<linearGradient id="tg-'+k+'" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="'+v[0]+'"/>'
     +'<stop offset="0.5" stop-color="'+v[1]+'"/><stop offset="1" stop-color="'+v[2]+'"/></linearGradient>';}
   return s+'</defs>';}
 function wheel(cx,cy,r,ring){
@@ -404,7 +471,7 @@ function progChart(elId, prog){
   var el=document.getElementById(elId);
   if(!prog||!prog.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
   var maxP=20; prog.forEach(function(d){[d.q,d.g,d.r].forEach(function(v){if(v&&v>maxP)maxP=v;});});
-  var W=900, H=480, L=56, R=72, T=16, B=72, pw=W-L-R, ph=H-T-B;
+  var W=900, H=480, L=56, R=56, T=16, B=72, pw=W-L-R, ph=H-T-B;
   var stages=[['Qualifying','q'],['Grid','g'],['Race','r']];
   function X(i){return L+pw*i/(stages.length-1);}
   function Y(p){return T+ph*(p-1)/(maxP-1);}
@@ -461,6 +528,115 @@ function tyreAgeChart(elId, drivers){
   el.innerHTML=svg(W,H,g);
 }
 
+/* ========== Top-3 drivers section ========== */
+function medianOf(a){if(!a||!a.length)return null;var s=a.slice().sort(function(x,y){return x-y;});var m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+function fmtLap(s){if(s==null)return '–';var m=Math.floor(s/60),r=s-m*60;return m>0?(m+':'+(r<10?'0':'')+r.toFixed(3)):r.toFixed(3);}
+var TEMP_BASE={SOFT:97,MEDIUM:94,HARD:91,INTERMEDIATE:72,WET:62};
+function stintOf(d,lap){for(var i=0;i<d.stints.length;i++){if(lap>=d.stints[i][1]&&lap<=d.stints[i][2])return d.stints[i];}return null;}
+function lapTemp(c,age,t,med){return (TEMP_BASE[c]||93)+0.12*age+18*((t/(med||t))-1);}
+function avgTemp(d){if(!d.lapseq||!d.lapseq.length)return null;var med=medianOf(d.laps),s=0,n=0;
+  d.lapseq.forEach(function(p){var st=stintOf(d,p[0]); if(!st)return; s+=lapTemp(st[0],p[0]-st[1]+1,p[1],med); n++;});return n?s/n:null;}
+
+function radarChart(elId, top3, radar){
+  var el=document.getElementById(elId);
+  var axes=[['Consistency','consistency'],['Pace','pace'],['Qualifying','qualifying'],['Racecraft','racecraft'],['Tyre Mgmt','tiremgmt']];
+  var W=540,H=470,cx=W/2,cy=H/2+8,Rad=140,n=axes.length;
+  function pt(i,v){var a=-Math.PI/2+2*Math.PI*i/n,r=Rad*v/100;return [cx+Math.cos(a)*r,cy+Math.sin(a)*r];}
+  var g='';
+  [20,40,60,80,100].forEach(function(v){var poly=axes.map(function(_,i){var p=pt(i,v);return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
+    g+='<polygon points="'+poly+'" fill="none" stroke="rgba(255,255,255,.10)"/>';});
+  axes.forEach(function(ax,i){var p=pt(i,100),pl=pt(i,119);
+    g+='<line x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'" stroke="rgba(255,255,255,.12)"/>';
+    var anc=Math.abs(pl[0]-cx)<12?'middle':(pl[0]<cx?'end':'start');
+    g+='<text x="'+pl[0].toFixed(1)+'" y="'+pl[1].toFixed(1)+'" class="radar-ax" text-anchor="'+anc+'">'+ax[0]+'</text>';});
+  top3.forEach(function(d){var rd=radar[d.code]||{};
+    var poly=axes.map(function(ax,i){var v=rd[ax[1]]; return pt(i,v==null?50:v);});
+    g+='<polygon points="'+poly.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ')+'" fill="'+d.color+'" fill-opacity="0.15" stroke="'+d.color+'" stroke-width="2"><title>'+d.fam+'</title></polygon>';
+    poly.forEach(function(p){g+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.4" fill="'+d.color+'"/>';});});
+  top3.forEach(function(d,i){var ly=20+i*17;
+    g+='<rect x="12" y="'+(ly-10)+'" width="11" height="11" rx="2" fill="'+d.color+'"/><text x="28" y="'+ly+'" class="radar-leg">'+d.fam+'</text>';});
+  el.innerHTML=svg(W,H,g);
+}
+
+function t3Table(elId, top3){
+  var rows=top3.map(function(d){
+    var laps=d.laps||[], best=laps.length?Math.min.apply(null,laps):null;
+    var avg=laps.length?laps.reduce(function(a,b){return a+b;},0)/laps.length:null, tmp=avgTemp(d);
+    return '<tr><td class="st-drv"><span class="teamdot" style="--c:'+d.color+'"></span><b>'+d.code+'</b> '+d.fam+'</td>'
+      +'<td class="num pts">'+fmtLap(best)+'</td><td class="num">'+fmtLap(avg)+'</td>'
+      +'<td class="num">'+(d.topspeed!=null?d.topspeed.toFixed(1):'–')+'</td>'
+      +'<td class="num">'+(tmp!=null?tmp.toFixed(1)+'°':'–')+'</td></tr>';}).join('');
+  document.getElementById(elId).innerHTML='<table class="std-table"><thead><tr><th>Driver</th>'
+    +'<th class="num">Best Lap</th><th class="num">Avg Lap</th><th class="num">Top Spd</th><th class="num">Avg °C</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function evoChart(elId, top3){
+  var el=document.getElementById(elId);
+  var laps=[],times=[]; top3.forEach(function(d){(d.lapseq||[]).forEach(function(p){laps.push(p[0]);times.push(p[1]);});});
+  if(!times.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
+  var W=1180,H=380,L=58,R=120,T=16,B=46,pw=W-L-R,ph=H-T-B;
+  var lmin=Math.min.apply(null,laps),lmax=Math.max.apply(null,laps);
+  var tmin=Math.min.apply(null,times),tmax=Math.max.apply(null,times),tp=(tmax-tmin)*0.08||1;tmin-=tp;tmax+=tp;
+  function X(l){return L+pw*(l-lmin)/Math.max(1,lmax-lmin);}
+  function Y(t){return T+ph*(1-(t-tmin)/(tmax-tmin));}
+  var g='';
+  for(var i=0;i<=5;i++){var v=tmin+(tmax-tmin)*i/5,y=T+ph*(1-i/5);
+    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/><text x="'+(L-6)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  for(var l=Math.ceil(lmin/10)*10;l<=lmax;l+=10){var x=X(l);
+    g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(H-B)+'" class="ch-grid"/><text x="'+x+'" y="'+(H-B+18)+'" class="ch-xlab" text-anchor="middle">'+l+'</text>';}
+  top3.forEach(function(d){ if(!d.lapseq||!d.lapseq.length)return;
+    var pts=d.lapseq.map(function(p){return X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);}).join(' ');
+    g+='<polyline points="'+pts+'" fill="none" stroke="'+d.color+'" stroke-width="1.8" stroke-opacity="0.92"><title>'+d.fam+'</title></polyline>';
+    var last=d.lapseq[d.lapseq.length-1];
+    g+='<text x="'+(X(last[0])+5)+'" y="'+(Y(last[1])+3)+'" class="ch-tag" fill="'+d.color+'">'+d.code+'</text>';});
+  g+='<text x="'+(L+pw/2)+'" y="'+(H-B+40)+'" class="ch-axtitle" text-anchor="middle">Lap</text>';
+  g+='<text x="15" y="'+(T+ph/2)+'" class="ch-axtitle" transform="rotate(-90 15 '+(T+ph/2)+')" text-anchor="middle">Lap Time (s)</text>';
+  el.innerHTML=svg(W,H,g);
+}
+
+function sectorChart(elId, top3){
+  var el=document.getElementById(elId), SC=['#E1112A','#19C3B1','#3671C6'];
+  var maxv=0; top3.forEach(function(d){(d.sectors||[]).forEach(function(s){if(s&&s>maxv)maxv=s;});});
+  if(!maxv){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
+  maxv*=1.12;
+  var W=560,H=470,L=48,R=14,T=42,B=58,pw=W-L-R,ph=H-T-B;
+  function Y(v){return T+ph*(1-v/maxv);}
+  var g='';
+  for(var i=0;i<=4;i++){var v=maxv*i/4,y=Y(v);
+    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/><text x="'+(L-6)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+v.toFixed(0)+'</text>';}
+  var gw=pw/top3.length, bw=Math.min(24,gw/4.2);
+  top3.forEach(function(d,gi){var gx=L+gw*(gi+0.5);
+    (d.sectors||[]).forEach(function(s,si){ if(s==null)return; var x=gx+(si-1)*(bw+4)-bw/2;
+      g+='<rect x="'+x.toFixed(1)+'" y="'+Y(s).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(Y(0)-Y(s)).toFixed(1)+'" rx="2" fill="'+SC[si]+'"><title>'+d.code+' Sector '+(si+1)+': '+s.toFixed(3)+'s</title></rect>';});
+    g+='<text x="'+gx.toFixed(1)+'" y="'+(H-B+18)+'" class="ch-xlab" text-anchor="middle">'+d.code+'</text>';});
+  ['Sector 1','Sector 2','Sector 3'].forEach(function(lab,i){var lx=L+i*96;
+    g+='<rect x="'+lx+'" y="16" width="11" height="11" rx="2" fill="'+SC[i]+'"/><text x="'+(lx+16)+'" y="25" class="radar-leg">'+lab+'</text>';});
+  g+='<text x="14" y="'+(T+ph/2)+'" class="ch-axtitle" transform="rotate(-90 14 '+(T+ph/2)+')" text-anchor="middle">Time (s)</text>';
+  el.innerHTML=svg(W,H,g);
+}
+
+function ttempChart(elId, top3){
+  var el=document.getElementById(elId), pts=[];
+  top3.forEach(function(d){var med=medianOf(d.laps); (d.lapseq||[]).forEach(function(p){var st=stintOf(d,p[0]); if(!st)return; pts.push({x:lapTemp(st[0],p[0]-st[1]+1,p[1],med),y:p[1],c:d.color,code:d.code});});});
+  if(!pts.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
+  var W=560,H=470,L=52,R=14,T=42,B=50,pw=W-L-R,ph=H-T-B;
+  var xs=pts.map(function(p){return p.x;}),ys=pts.map(function(p){return p.y;});
+  var xmin=Math.min.apply(null,xs)-1,xmax=Math.max.apply(null,xs)+1;
+  var ymin=Math.min.apply(null,ys),ymax=Math.max.apply(null,ys),yp=(ymax-ymin)*0.08||1;ymin-=yp;ymax+=yp;
+  function X(v){return L+pw*(v-xmin)/(xmax-xmin);}
+  function Y(v){return T+ph*(1-(v-ymin)/(ymax-ymin));}
+  var g='';
+  for(var i=0;i<=5;i++){var v=ymin+(ymax-ymin)*i/5,y=T+ph*(1-i/5);
+    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/><text x="'+(L-6)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  for(var j=0;j<=4;j++){var xv=xmin+(xmax-xmin)*j/4,x=X(xv);
+    g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(H-B)+'" class="ch-grid"/><text x="'+x+'" y="'+(H-B+18)+'" class="ch-xlab" text-anchor="middle">'+xv.toFixed(0)+'</text>';}
+  pts.forEach(function(p){g+='<circle cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="2.4" fill="'+p.c+'" fill-opacity="0.72"><title>'+p.code+' · '+p.x.toFixed(0)+'°C · '+p.y.toFixed(2)+'s</title></circle>';});
+  top3.forEach(function(d,i){g+='<rect x="'+(L+i*78)+'" y="16" width="11" height="11" rx="2" fill="'+d.color+'"/><text x="'+(L+i*78+16)+'" y="25" class="radar-leg">'+d.code+'</text>';});
+  g+='<text x="'+(L+pw/2)+'" y="'+(H-B+40)+'" class="ch-axtitle" text-anchor="middle">Tyre Temp (°C · modelled)</text>';
+  g+='<text x="14" y="'+(T+ph/2)+'" class="ch-axtitle" transform="rotate(-90 14 '+(T+ph/2)+')" text-anchor="middle">Lap Time (s)</text>';
+  el.innerHTML=svg(W,H,g);
+}
+
 /* ---------- click-to-zoom modal ---------- */
 function openZoom(card){
   var host=card.querySelector('.ch-host'); if(!host||!host.innerHTML.trim())return;
@@ -496,6 +672,13 @@ function renderAX(){
   boxChart('ch-pace', tg);
   tyreChart('ch-tyre', drv, R.total_laps);
   tyreAgeChart('ch-tyreage', drv);
+  // Top-3 drivers (by finishing position)
+  var top3=drv.filter(function(d){return typeof d.fin==='number'&&d.fin<=3;}).sort(function(a,b){return a.fin-b.fin;}).slice(0,3);
+  radarChart('ch-radar', top3, R.radar||{});
+  t3Table('t3-table', top3);
+  evoChart('ch-evo', top3);
+  sectorChart('ch-sector', top3);
+  ttempChart('ch-ttemp', top3);
 }
 
 renderMatrix();

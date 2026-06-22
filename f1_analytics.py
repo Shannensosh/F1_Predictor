@@ -67,11 +67,25 @@ def _race_detail(laps):
         # ── representative racing laps (drop in/out + >107% of personal best) ──
         valid = dl[dl["LapTime"].notna()
                    & dl["PitInTime"].isna() & dl["PitOutTime"].isna()]
-        secs = valid["LapTime"].dt.total_seconds()
-        lap_times = []
-        if len(secs):
-            cut = secs.min() * 1.07
-            lap_times = [round(float(s), 3) for s in secs if s <= cut]
+        lapseq = []
+        if len(valid):
+            cut = valid["LapTime"].dt.total_seconds().min() * 1.07
+            for r in valid.itertuples():
+                s = r.LapTime.total_seconds()
+                if s <= cut:
+                    lapseq.append([int(r.LapNumber), round(float(s), 3)])
+        lap_times = [t for _, t in lapseq]
+        # ── average sector times (s) ──
+        sectors = []
+        for col in ("Sector1Time", "Sector2Time", "Sector3Time"):
+            v = valid[col].dropna() if col in valid.columns else []
+            sectors.append(round(float(v.dt.total_seconds().mean()), 3) if len(v) else None)
+        # ── top speed (speed trap, km/h) ──
+        topspeed = None
+        if "SpeedST" in dl.columns:
+            sp = dl["SpeedST"].dropna()
+            if len(sp):
+                topspeed = round(float(sp.max()), 1)
         # ── position per lap ──
         pos = [[int(r.LapNumber), int(r.Position)]
                for r in dl.itertuples() if r.Position == r.Position]  # not NaN
@@ -86,7 +100,8 @@ def _race_detail(laps):
         stints.sort(key=lambda s: s[1])
         if not (lap_times or pos or stints):
             continue
-        out[str(code)] = {"laps": lap_times, "pos": pos, "stints": stints}
+        out[str(code)] = {"laps": lap_times, "lapseq": lapseq, "sectors": sectors,
+                          "topspeed": topspeed, "pos": pos, "stints": stints}
     return out, total
 
 
