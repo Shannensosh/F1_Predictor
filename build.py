@@ -916,15 +916,16 @@ def build_drivers(d):
                 return f"assets/drivers/{fn}"
         return None
 
-    # drivers whose OFFICIAL F1 headshot is stale for 2026 — a mid-career team switch
-    # (Hadjar → Red Bull) still showing last year's suit, or a rookie with only the
-    # generic placeholder image. For these, use a real 2026 photo instead.
-    STALE_HEADSHOT = {"hadjar", "arvid_lindblad"}
+    # explicit 2026 F1.com headshots for drivers whose default headshot is stale
+    # (Hadjar → Red Bull team switch) or missing (Lindblad rookie placeholder) —
+    # current full-body cutouts pulled from their formula1.com/en/drivers pages.
+    HEADSHOT_2026 = {
+        "hadjar": "https://media.formula1.com/image/upload/c_fill,w_640,h_620,g_north/q_auto/v1740000001/common/f1/2026/redbullracing/isahad01/2026redbullracingisahad01right.webp",
+        "arvid_lindblad": "https://media.formula1.com/image/upload/c_fill,w_640,h_620,g_north/q_auto/v1740000001/common/f1/2026/racingbulls/arvlin01/2026racingbullsarvlin01right.webp",
+    }
     def detail_photo(x):
         did = x["driverId"]
-        if did in STALE_HEADSHOT:
-            return custom_img(x) or dphotos.get(did) or photo(x.get("num")) or ""
-        return photo(x.get("num")) or dphotos.get(did) or custom_img(x) or ""
+        return HEADSHOT_2026.get(did) or photo(x.get("num")) or dphotos.get(did) or custom_img(x) or ""
 
     # 2026 per-round points (race + sprint), GPs and top-10s per driver
     def _fin(s):
