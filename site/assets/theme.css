@@ -409,6 +409,50 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .chart-grid .ch-host.t3-table-host{display:flex;align-items:center;justify-content:center}
 .t3-table-host .std-table{width:100%;font-size:13px}
 
+/* ── Drivers page: card grid + click-through detail ─────────────────────── */
+.drv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:14px}
+.drv-card{cursor:pointer;font:inherit;color:inherit;text-align:left;padding:0;width:100%;
+  -webkit-appearance:none;appearance:none;transition:transform .12s,box-shadow .12s}
+.drv-card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(0,0,0,.5)}
+.drv-card:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+.drv-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(6,6,9,.86);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);padding:3vh 3vw}
+.drv-modal.open{display:flex;align-items:center;justify-content:center}
+.drv-detail{width:100%;max-width:980px;max-height:92vh;overflow:auto;border:1px solid var(--outline);
+  border-radius:var(--r-lg);background:#0b0b10;position:relative}
+.drv-close{position:absolute;top:12px;left:12px;z-index:5;background:rgba(8,8,12,.6);border:1px solid var(--outline);
+  color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:'Titillium Web';font-weight:600;font-size:13px}
+.drv-close:hover{border-color:var(--lime);color:var(--lime)}
+.dd-hero{position:relative;display:flex;gap:18px;padding:54px 26px 26px;min-height:330px;overflow:hidden}
+.dd-info{position:relative;z-index:2;flex:1;min-width:0;max-width:62%}
+.dd-name{font-family:'Titillium Web';font-weight:800;font-size:38px;line-height:1;color:#fff}
+.dd-fam{font-family:'Titillium Web';font-weight:800;font-size:26px;line-height:1.1;margin-top:2px}
+.dd-sub{margin-top:8px;font-family:'Titillium Web';font-weight:600;font-size:14px;color:#e6e4ee}
+.dd-since{margin-top:2px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.dd-bigrow{display:flex;gap:26px;margin:16px 0 14px}
+.dd-big span{font-family:'JetBrains Mono';font-weight:700;font-size:34px;color:#fff;display:block;line-height:1}
+.dd-big small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.dd-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px;max-width:380px}
+.dd-stat{display:flex;align-items:center;gap:10px}
+.dd-ic{width:24px;height:24px;color:var(--lime);flex:none}.dd-ic svg{width:100%;height:100%}
+.dd-val{font-family:'JetBrains Mono';font-weight:700;font-size:20px;color:#fff;line-height:1}
+.dd-lab{font-size:11px;color:var(--muted)}
+.dd-2026{margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);display:flex;
+  flex-direction:column;gap:3px}
+.dd-2026-h{font-family:'Titillium Web';font-weight:700;font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--lime)}
+.dd-2026-row{font-family:'Titillium Web';font-size:14px;color:#e6e4ee}.dd-2026-row b{color:#fff;font-weight:700}
+.dd-photo{position:absolute;right:0;bottom:0;top:0;width:46%;display:flex;align-items:flex-end;justify-content:flex-end;z-index:1}
+.dd-photo img{height:100%;width:auto;max-width:100%;object-fit:contain;object-position:bottom right;
+  filter:drop-shadow(0 10px 24px rgba(0,0,0,.5))}
+.dd-bars-wrap{padding:16px 22px 20px;border-top:1px solid var(--outline-2);background:#0c0c12}
+.dd-bars-h{font-family:'Titillium Web';font-weight:700;font-size:12px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.dd-bars{width:100%;height:auto;display:block}
+.dd-bx{fill:#8a8a93;font-family:'JetBrains Mono';font-size:9px}
+.dd-nobars{color:var(--muted);font-size:13px;padding:14px 0}
+@media(max-width:680px){.dd-info{max-width:100%}.dd-photo{display:none}.dd-name{font-size:30px}}
+
 /* ── page scaffolding ───────────────────────────────────────────────────── */
 main{padding:28px 0 80px}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;

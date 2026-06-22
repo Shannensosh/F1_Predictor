@@ -286,6 +286,70 @@ def fetch_constructor_standings(season, rnd=None):
     return out
 
 
+def fetch_driver_careers(drivers, hist_max=2025):
+    """Per-driver HISTORICAL career totals (seasons ≤ hist_max) from Jolpica:
+    debut/last season, GPs, points, wins, podiums, poles, top-10s. Static history →
+    cached hard (NOT busted by refresh_live); build.py adds the live 2026 numbers on
+    top so totals stay current without re-paginating every veteran's career daily."""
+    out = {}
+    for drv in drivers:
+        did = drv["driverId"]
+        # ── all race results (≤ hist_max) → GPs, points, wins, podiums, top-10s, seasons.
+        #    (Jolpica has no per-driver driverStandings endpoint, so totals come straight
+        #     from the result list; points are race points, sprints excluded.) ──
+        gps = pod = top10 = wins = 0
+        pts = 0.0
+        seasons = set()
+        offset, total = 0, None
+        while offset < 4000:
+            r = _get(f"{JOLPICA}/drivers/{did}/results.json?limit=100&offset={offset}",
+                     cache_key=f"car_{did}_res_{offset}")
+            races = (((r or {}).get("MRData") or {}).get("RaceTable") or {}).get("Races") or []
+            if not races:
+                break
+            total = int(r["MRData"]["total"])
+            for race in races:
+                if int(race["season"]) > hist_max or not race.get("Results"):
+                    continue
+                res = race["Results"][0]
+                seasons.add(int(race["season"]))
+                gps += 1
+                pts += float(res.get("points", 0) or 0)
+                try:
+                    p = int(res["position"])
+                except (KeyError, ValueError, TypeError):
+                    p = None
+                if p == 1:
+                    wins += 1
+                if p and p <= 3:
+                    pod += 1
+                if p and p <= 10:
+                    top10 += 1
+            offset += 100
+            if offset >= total:
+                break
+        seasons = sorted(seasons)
+        # ── poles: qualifying P1 (≤ hist_max) ──
+        poles, offset, total = 0, 0, None
+        while offset < 4000:
+            q = _get(f"{JOLPICA}/drivers/{did}/qualifying/1.json?limit=100&offset={offset}",
+                     cache_key=f"car_{did}_pole_{offset}")
+            races = (((q or {}).get("MRData") or {}).get("RaceTable") or {}).get("Races") or []
+            total = int((((q or {}).get("MRData") or {}).get("total")) or 0)
+            for race in races:
+                if int(race["season"]) <= hist_max:
+                    poles += 1
+            offset += 100
+            if not races or offset >= total:
+                break
+        out[did] = {"debut": min(seasons) if seasons else None,
+                    "last": max(seasons) if seasons else None,
+                    "gps": gps, "points": round(pts), "wins": wins,
+                    "podiums": pod, "poles": poles, "top10s": top10}
+        time.sleep(0.15)
+    return out
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # OpenF1 — bundled sample race for live-timing playback
 # ─────────────────────────────────────────────────────────────────────────────
@@ -839,6 +903,8 @@ def fetch_all():
                               "prev_drivers": prev_drivers,
                               "prev_constructors": prev_constructors})
     _save("drivers.json", drivers_idx)
+    print("   · driver career history (Jolpica, ≤2025)")
+    _save("driver_careers.json", fetch_driver_careers(dstand))
 
     print("» Sample race telemetry (OpenF1)")
     sample = build_sample_race()

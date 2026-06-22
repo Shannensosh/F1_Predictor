@@ -42,7 +42,7 @@ def team_color(cid): return TEAM_COLORS.get(cid, "#8E8E93")
 NAV = [
     ("dashboard.html", "Overview"), ("live-timing.html", "Live Timing"),
     ("schedule.html", "Schedule"), ("results.html", "Results"),
-    ("prediction.html", "Prediction"),
+    ("drivers.html", "Drivers"), ("prediction.html", "Prediction"),
 ]
 
 # editorial splash hero image — CC BY-SA 4.0, Lukas Raich (Wikimedia Commons):
@@ -891,28 +891,149 @@ if(document.readyState!=='loading')initMap();else window.addEventListener('DOMCo
 
 
 def build_drivers(d):
-    standings = d["standings"]
-    cards = []
-    for x in standings["drivers"]:
-        cid = x["constructorId"]
-        cards.append(f"""
-        <div class="card" style="display:flex;gap:14px;align-items:center">
-          {dbadge(x.get('num'), team_color(cid), 'lg')}
-          <div style="min-width:0">
-            <div style="font-family:'Titillium Web';font-weight:700;font-size:16px">{esc(x['family'])}</div>
-            <div class="muted" style="font-size:12px">{esc(x['given'])} · {flag(x['nationality'])} {esc(x['nationality'])}</div>
-            <div class="flex gap8 ac" style="margin-top:6px">
-              <span class="chip" style="border-color:{team_color(cid)};color:{team_color(cid)}">{esc(x['constructor'])}</span>
-            </div>
-            <div class="muted mono" style="font-size:12px;margin-top:6px">
-              P{x['pos']} · {x['points']:.0f} pts · {x['wins']} wins</div>
-          </div>
-        </div>""")
+    standings = d["standings"]; drivers = standings["drivers"]
+    careers = d.get("careers", {}); stats = d.get("stats", {})
+    results, sprint, sched = d["results"], d["sprint"], d["sched"]
+    photos = standings.get("photos", {}); dphotos = standings.get("driver_photos", {})
+    def photo(num): return photos.get(str(num))
+
+    # custom drop-in cockpit shots (same matcher as the dashboard FINALISTS cards)
+    def _norm(s):
+        s = unicodedata.normalize("NFKD", s)
+        s = "".join(c for c in s if not unicodedata.combining(c))
+        return "".join(ch for ch in s.lower() if ch.isalnum())
+    _drv_dir = os.path.join(SITE, "assets", "drivers"); _drv_files = []
+    if os.path.isdir(_drv_dir):
+        for fn in os.listdir(_drv_dir):
+            if fn.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".avif")):
+                _drv_files.append((_norm(os.path.splitext(fn)[0]), fn))
+    def custom_img(x):
+        fam = _norm(x["family"]); did = _norm(x["driverId"]); code = _norm(x.get("code") or "")
+        for stem, fn in _drv_files:
+            if (len(fam) >= 4 and fam in stem) or stem == did or (code and stem == code):
+                return f"assets/drivers/{fn}"
+        return None
+
+    # 2026 per-round points (race + sprint), GPs and top-10s per driver
+    rnd_pts = {x["driverId"]: {} for x in drivers}
+    gps26 = {x["driverId"]: 0 for x in drivers}; top26 = {x["driverId"]: 0 for x in drivers}
+    for race in results.get("2026", []):
+        for res in race["results"]:
+            did = res["driverId"]
+            if did not in rnd_pts:
+                continue
+            rnd_pts[did][race["round"]] = rnd_pts[did].get(race["round"], 0) + (res.get("points") or 0)
+            gps26[did] += 1
+            if isinstance(res.get("pos"), int) and res["pos"] <= 10:
+                top26[did] += 1
+    for race in sprint.get("2026", []):
+        for res in race["results"]:
+            did = res["driverId"]
+            if did in rnd_pts:
+                rnd_pts[did][race["round"]] = rnd_pts[did].get(race["round"], 0) + (res.get("points") or 0)
+    rounds = [r["round"] for r in sched]
+
+    # inlined per-driver payload (career = historical ≤2025 + live 2026)
+    DRV = {}
+    for x in drivers:
+        did = x["driverId"]; cid = x["constructorId"]
+        h = careers.get(did) or {}; st = stats.get(did, {}).get("y2026", {})
+        byr = [{"r": r, "p": round(rnd_pts[did].get(r, 0))} for r in rounds if r in rnd_pts[did]]
+        career = {
+            "debut": h.get("debut") or 2026, "last": 2026,
+            "gps": (h.get("gps") or 0) + gps26[did],
+            "points": round((h.get("points") or 0) + (x.get("points") or 0)),
+            "wins": (h.get("wins") or 0) + (x.get("wins") or 0),
+            "podiums": (h.get("podiums") or 0) + st.get("podiums", 0),
+            "poles": (h.get("poles") or 0) + st.get("poles", 0),
+            "top10s": (h.get("top10s") or 0) + top26[did],
+        }
+        s2026 = {"points": round(x.get("points") or 0), "wins": x.get("wins") or 0,
+                 "podiums": st.get("podiums", 0), "poles": st.get("poles", 0), "gps": gps26[did]}
+        DRV[did] = {
+            "given": x["given"], "family": x["family"], "code": x.get("code"),
+            "team": short_team(x["constructor"]), "color": team_color(cid),
+            "flag": flag(x["nationality"]), "nat": x["nationality"],
+            "photo": photo(x.get("num")) or dphotos.get(did) or "",
+            "career": career, "s2026": s2026, "byround": byr, "cpos": x["pos"],
+        }
+
+    def card(x):
+        did = x["driverId"]; cid = x["constructorId"]; cu = custom_img(x)
+        if cu:
+            bg = f'<img class="fin-bg cover" src="{esc(cu)}" alt="" loading="lazy">'
+        else:
+            u = photo(x.get("num")) or dphotos.get(did)
+            bg = f'<img class="fin-bg" src="{esc(u)}" alt="" loading="lazy" onerror="this.remove()">' if u else ""
+        return (f'<button class="fin-card driver drv-card" style="--c:{team_color(cid)}" '
+                f'onclick="openDriver(\'{did}\')">{bg}<div class="fin-scrim"></div><div class="fin-bar"></div>'
+                f'<div class="fin-place">P{x["pos"]}</div>'
+                f'<div class="fin-top">{team_dot(cid)}{esc(short_team(x["constructor"]))}</div>'
+                f'<div class="fin-pts">{x["points"]:.0f}<span>PTS</span></div>'
+                f'<div class="fin-name">{flag(x["nationality"])} {esc(x["given"])} {esc(x["family"])}</div></button>')
+
+    grid = '<div class="drv-grid">' + "".join(card(x) for x in drivers) + "</div>"
+    modal = ('<div class="drv-modal" id="drv-modal" onclick="closeDriver(event)">'
+             '<div class="drv-detail" id="drv-detail" onclick="event.stopPropagation()"></div></div>')
     body = ('<div class="page-head"><div><h1>Drivers</h1>'
-            '<p>The 2026 grid — numbers, teams, nationalities and season form.</p></div>'
-            f'<div class="chip lime">{len(standings["drivers"])} DRIVERS</div></div>'
-            '<div class="grid g3">' + "".join(cards) + "</div>")
-    return page("PITWALL F1 · Drivers", "Drivers", body)
+            "<p>The 2026 grid — tap any driver for their career history and this season's form.</p></div>"
+            f'<div class="chip lime">{len(drivers)} DRIVERS</div></div>' + grid + modal)
+
+    js = r"""
+var D=PAGE_DATA();
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+var IC={
+ win:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>',
+ pod:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M7 21v-7h4v7M11 14V9h4v12M15 21V5h4v16"/></svg>',
+ pole:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
+ top:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>'
+};
+function barChart(byr,color){
+  if(!byr||!byr.length) return '<div class="dd-nobars">No 2026 rounds yet.</div>';
+  var W=Math.max(420, byr.length*30+30), H=160, L=10, R=10, T=12, B=26, pw=W-L-R, ph=H-T-B;
+  var mx=Math.max.apply(null, byr.map(function(b){return b.p;}))||1;
+  var bw=Math.min(22, pw/byr.length*0.62), g='';
+  for(var k=0;k<=mx;k+=Math.max(1,Math.ceil(mx/4))){var y=T+ph*(1-k/mx);
+    g+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.07)"/>';}
+  byr.forEach(function(b,i){
+    var x=L+pw*(i+0.5)/byr.length, h=ph*b.p/mx, y=T+ph-h, col=b.p>0?color:'#3a3a44';
+    g+='<rect x="'+(x-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(2,h).toFixed(1)+'" rx="2" fill="'+col+'"><title>Round '+b.r+': '+b.p+' pts</title></rect>';
+    g+='<text x="'+x.toFixed(1)+'" y="'+(H-8)+'" class="dd-bx" text-anchor="middle">'+(b.r<10?'0'+b.r:b.r)+'</text>';
+  });
+  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" class="dd-bars">'+g+'</svg>';
+}
+function statRow(icon,val,label){
+  return '<div class="dd-stat"><span class="dd-ic">'+icon+'</span><div class="dd-stxt">'
+    +'<div class="dd-val">'+val+'</div><div class="dd-lab">'+label+'</div></div></div>';
+}
+function openDriver(did){
+  var x=D[did]; if(!x)return; var c=x.career, s=x.s2026;
+  var html='<button class="drv-close" onclick="closeDriver(event)">‹ Back</button>'
+   +'<div class="dd-hero" style="background:linear-gradient(120deg,'+x.color+' -10%,#120d10 52%,#0a0a0e 100%)">'
+   +'<div class="dd-info">'
+   +'<div class="dd-name">'+esc(x.given)+'</div>'
+   +'<div class="dd-fam" style="color:'+x.color+'">'+esc(x.family)+'</div>'
+   +'<div class="dd-sub">'+x.flag+' '+esc(x.nat)+' · '+esc(x.team)+'</div>'
+   +'<div class="dd-since">Since debut · '+c.debut+'–'+c.last+'</div>'
+   +'<div class="dd-bigrow"><div class="dd-big"><span>'+c.gps+'</span><small>GPs</small></div>'
+   +'<div class="dd-big"><span>'+c.points.toLocaleString()+'</span><small>Career pts</small></div></div>'
+   +'<div class="dd-grid">'
+   + statRow(IC.win,c.wins,'Wins') + statRow(IC.pod,c.podiums,'Podiums')
+   + statRow(IC.pole,c.poles,'Poles') + statRow(IC.top,c.top10s,'Top 10s')
+   +'</div>'
+   +'<div class="dd-2026"><span class="dd-2026-h">2026 Season</span>'
+   +'<span class="dd-2026-row"><b>'+s.points+'</b> pts &nbsp;·&nbsp; <b>'+s.wins+'</b> wins &nbsp;·&nbsp; <b>'+s.podiums+'</b> podiums &nbsp;·&nbsp; <b>'+s.poles+'</b> poles</span></div>'
+   +'</div>'
+   + (x.photo?'<div class="dd-photo"><img src="'+esc(x.photo)+'" alt="" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>':'')
+   +'</div>'
+   +'<div class="dd-bars-wrap"><div class="dd-bars-h">2026 Points by Round</div>'+barChart(x.byround,x.color)+'</div>';
+  var det=document.getElementById('drv-detail'); det.innerHTML=html; det.scrollTop=0;
+  document.getElementById('drv-modal').classList.add('open'); document.body.style.overflow='hidden';
+}
+function closeDriver(e){document.getElementById('drv-modal').classList.remove('open'); document.body.style.overflow='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDriver();});
+"""
+    return page("PITWALL F1 · Drivers", "Drivers", body, data=DRV, js=js)
 
 
 # the remaining pages live in part 2 (appended below)
@@ -957,6 +1078,7 @@ def main():
     d["stats"] = compute_stats(d["results"], d["quali"], d["sprint"], d["standings"])
     d["incidents"] = compute_incidents(d["results"], d["standings"])
     d["race_analytics"] = _load_opt("race_analytics.json", {})
+    d["careers"] = _load_opt("driver_careers.json", {})
 
     ctx = {"page": page, "esc": esc, "flag": flag, "dbadge": dbadge,
            "bar_row": bar_row, "team_color": team_color, "team_dot": team_dot,
@@ -1003,9 +1125,7 @@ def main():
         "standings.html": ('<!DOCTYPE html><meta charset="utf-8">'
                            '<meta http-equiv="refresh" content="0; url=dashboard.html">'
                            '<a href="dashboard.html">Standings are on the dashboard →</a>'),
-        "drivers.html": ('<!DOCTYPE html><meta charset="utf-8">'
-                         '<meta http-equiv="refresh" content="0; url=dashboard.html">'
-                         '<a href="dashboard.html">→ Dashboard</a>'),
+        "drivers.html": build_drivers(d),
         "driver-stats.html": ('<!DOCTYPE html><meta charset="utf-8">'
                               '<meta http-equiv="refresh" content="0; url=dashboard.html">'
                               '<a href="dashboard.html">→ Dashboard</a>'),
