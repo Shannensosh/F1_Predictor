@@ -915,8 +915,12 @@ def build_drivers(d):
         return None
 
     # 2026 per-round points (race + sprint), GPs and top-10s per driver
+    def _fin(s):
+        s = s or ""
+        return s == "Finished" or s.startswith("+") or s == "Lapped"
     rnd_pts = {x["driverId"]: {} for x in drivers}
     gps26 = {x["driverId"]: 0 for x in drivers}; top26 = {x["driverId"]: 0 for x in drivers}
+    inpts26 = {x["driverId"]: 0 for x in drivers}; dnf26 = {x["driverId"]: 0 for x in drivers}
     for race in results.get("2026", []):
         for res in race["results"]:
             did = res["driverId"]
@@ -926,12 +930,33 @@ def build_drivers(d):
             gps26[did] += 1
             if isinstance(res.get("pos"), int) and res["pos"] <= 10:
                 top26[did] += 1
+            if (res.get("points") or 0) > 0:
+                inpts26[did] += 1
+            if not _fin(res.get("status")):
+                dnf26[did] += 1
     for race in sprint.get("2026", []):
         for res in race["results"]:
             did = res["driverId"]
             if did in rnd_pts:
                 rnd_pts[did][race["round"]] = rnd_pts[did].get(race["round"], 0) + (res.get("points") or 0)
     rounds = [r["round"] for r in sched]
+
+    # previous-season (2025) points-by-round → cumulative evolution overlay
+    pts25 = {x["driverId"]: {} for x in drivers}
+    for grp in (results.get("2025", []), sprint.get("2025", [])):
+        for race in grp:
+            for res in race["results"]:
+                did = res["driverId"]
+                if did in pts25:
+                    pts25[did][race["round"]] = pts25[did].get(race["round"], 0) + (res.get("points") or 0)
+    rounds25 = sorted({race["round"] for race in results.get("2025", [])})
+
+    def _cum(rmap, rlist):
+        out, c = [], 0
+        for r in rlist:
+            c += rmap.get(r, 0)
+            out.append([r, round(c)])
+        return out
 
     # inlined per-driver payload (career = historical ≤2025 + live 2026)
     DRV = {}
@@ -950,12 +975,16 @@ def build_drivers(d):
         }
         s2026 = {"points": round(x.get("points") or 0), "wins": x.get("wins") or 0,
                  "podiums": st.get("podiums", 0), "poles": st.get("poles", 0), "gps": gps26[did]}
+        perf = {"races": gps26[did], "wins": x.get("wins") or 0, "podiums": st.get("podiums", 0),
+                "inpoints": inpts26[did], "dnf": dnf26[did]}
         DRV[did] = {
             "given": x["given"], "family": x["family"], "code": x.get("code"),
             "team": short_team(x["constructor"]), "color": team_color(cid),
             "flag": flag(x["nationality"]), "nat": x["nationality"],
             "photo": photo(x.get("num")) or dphotos.get(did) or "",
-            "career": career, "s2026": s2026, "byround": byr, "cpos": x["pos"],
+            "career": career, "s2026": s2026, "perf": perf,
+            "evo26": _cum(rnd_pts[did], sorted(rnd_pts[did].keys())),
+            "evo25": _cum(pts25[did], rounds25), "cpos": x["pos"],
         }
 
     def card(x):
@@ -988,33 +1017,65 @@ var IC={
  pole:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
  top:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>'
 };
-function barChart(byr,color){
-  if(!byr||!byr.length) return '<div class="dd-nobars">No 2026 rounds yet.</div>';
-  var W=Math.max(420, byr.length*30+30), H=160, L=10, R=10, T=12, B=26, pw=W-L-R, ph=H-T-B;
-  var mx=Math.max.apply(null, byr.map(function(b){return b.p;}))||1;
-  var bw=Math.min(22, pw/byr.length*0.62), g='';
-  for(var k=0;k<=mx;k+=Math.max(1,Math.ceil(mx/4))){var y=T+ph*(1-k/mx);
-    g+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.07)"/>';}
-  byr.forEach(function(b,i){
-    var x=L+pw*(i+0.5)/byr.length, h=ph*b.p/mx, y=T+ph-h, col=b.p>0?color:'#3a3a44';
-    g+='<rect x="'+(x-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(2,h).toFixed(1)+'" rx="2" fill="'+col+'"><title>Round '+b.r+': '+b.p+' pts</title></rect>';
-    g+='<text x="'+x.toFixed(1)+'" y="'+(H-8)+'" class="dd-bx" text-anchor="middle">'+(b.r<10?'0'+b.r:b.r)+'</text>';
-  });
-  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" class="dd-bars">'+g+'</svg>';
-}
 function statRow(icon,val,label){
   return '<div class="dd-stat"><span class="dd-ic">'+icon+'</span><div class="dd-stxt">'
     +'<div class="dd-val">'+val+'</div><div class="dd-lab">'+label+'</div></div></div>';
 }
+function svg(w,h,inner){return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="xMidYMid meet" class="dd-svg">'+inner+'</svg>';}
+function mix(hex,f){hex=String(hex).replace('#','');if(hex.length===3)hex=hex.split('').map(function(c){return c+c;}).join('');
+  var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+  r=Math.round(r+(255-r)*f);g=Math.round(g+(255-g)*f);b=Math.round(b+(255-b)*f);return 'rgb('+r+','+g+','+b+')';}
+function ring(cx,cy,r,frac,color,w){var C=2*Math.PI*r;
+  return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="'+w+'"/>'
+   +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+w+'" stroke-linecap="round" stroke-dasharray="'+(frac*C).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';}
+function donutTriple(p,color){
+  var races=p.races||1;
+  var rg=[['Wins',p.wins,color],['Podiums',p.podiums,mix(color,.42)],['In Points',p.inpoints,mix(color,.7)],['DNF/DSQ',p.dnf,'#6b6b73']];
+  var g='', cx=92, cy=98;
+  rg.forEach(function(d,i){g+=ring(cx,cy,76-i*15,Math.min(1,d[1]/races),d[2],10);});
+  rg.forEach(function(d,i){var y=44+i*30;
+    g+='<rect x="184" y="'+(y-11)+'" width="11" height="11" rx="2" fill="'+d[2]+'"/>'
+     +'<text x="202" y="'+(y-1)+'" class="dn-lab">'+d[0]+'</text>'
+     +'<text x="300" y="'+(y-1)+'" class="dn-val" text-anchor="end">'+d[1]+'</text>';});
+  return svg(312,196,g);
+}
+function donutPct(p,color){
+  var races=p.races||1, frac=p.inpoints/races, cx=156, cy=98, r=64, C=2*Math.PI*r, w=18;
+  var g='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="'+w+'"/>'
+   +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+w+'" stroke-linecap="round" stroke-dasharray="'+(frac*C).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>'
+   +'<text x="'+cx+'" y="'+(cy+2)+'" class="dn-pct" text-anchor="middle">'+(frac*100).toFixed(1)+'%</text>'
+   +'<text x="'+cx+'" y="'+(cy+22)+'" class="dn-sub" text-anchor="middle">'+p.inpoints+' / '+races+' races</text>';
+  return svg(312,196,g);
+}
+function smooth(pts){if(pts.length<2)return pts.length?('M'+pts[0][0]+','+pts[0][1]):'';
+  var d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1);
+  for(var i=0;i<pts.length-1;i++){var p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+    var c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6,c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0].toFixed(1)+','+p2[1].toFixed(1);}
+  return d;}
+function evoLine(e26,e25,color){
+  var W=336,H=196,L=34,R=12,T=26,B=24,pw=W-L-R,ph=H-T-B;
+  var maxR=Math.max(e26.length?e26[e26.length-1][0]:1,e25.length?e25[e25.length-1][0]:1,2);
+  var maxP=Math.max(e26.length?e26[e26.length-1][1]:0,e25.length?e25[e25.length-1][1]:0,1);
+  function X(r){return L+pw*(r-1)/Math.max(1,maxR-1);}
+  function Y(p){return T+ph*(1-p/maxP);}
+  var g='';
+  for(var i=0;i<=3;i++){var y=T+ph*i/3,v=maxP*(1-i/3);
+    g+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.07)"/>'
+     +'<text x="'+(L-5)+'" y="'+(y+3).toFixed(1)+'" class="dd-bx" text-anchor="end">'+Math.round(v)+'</text>';}
+  if(e25.length>1) g+='<path d="'+smooth(e25.map(function(p){return [X(p[0]),Y(p[1])];}))+'" fill="none" stroke="#6b6b73" stroke-width="2" stroke-opacity=".85"/>';
+  if(e26.length>1) g+='<path d="'+smooth(e26.map(function(p){return [X(p[0]),Y(p[1])];}))+'" fill="none" stroke="'+color+'" stroke-width="2.6"/>';
+  g+='<rect x="'+L+'" y="8" width="10" height="10" rx="2" fill="'+color+'"/><text x="'+(L+15)+'" y="17" class="dd-bx">2026</text>'
+   +'<rect x="'+(L+60)+'" y="8" width="10" height="10" rx="2" fill="#6b6b73"/><text x="'+(L+75)+'" y="17" class="dd-bx">2025</text>';
+  return svg(W,H,g);
+}
 function openDriver(did){
   var x=D[did]; if(!x)return; var c=x.career, s=x.s2026;
   var html='<button class="drv-close" onclick="closeDriver(event)">‹ Back</button>'
-   +'<div class="dd-hero" style="background:linear-gradient(120deg,'+x.color+' -10%,#120d10 52%,#0a0a0e 100%)">'
+   +'<div class="dd-hero" style="background:linear-gradient(120deg,'+x.color+' -12%,#120d10 50%,#0a0a0e 100%)">'
    +'<div class="dd-info">'
-   +'<div class="dd-name">'+esc(x.given)+'</div>'
-   +'<div class="dd-fam" style="color:'+x.color+'">'+esc(x.family)+'</div>'
-   +'<div class="dd-sub">'+x.flag+' '+esc(x.nat)+' · '+esc(x.team)+'</div>'
-   +'<div class="dd-since">Since debut · '+c.debut+'–'+c.last+'</div>'
+   +'<div class="dd-name">'+esc(x.given)+' <span class="dd-fam" style="color:'+x.color+'">'+esc(x.family)+'</span></div>'
+   +'<div class="dd-sub">'+x.flag+' '+esc(x.nat)+' · '+esc(x.team)+' <span class="dd-since">· since debut '+c.debut+'–'+c.last+'</span></div>'
    +'<div class="dd-bigrow"><div class="dd-big"><span>'+c.gps+'</span><small>GPs</small></div>'
    +'<div class="dd-big"><span>'+c.points.toLocaleString()+'</span><small>Career pts</small></div></div>'
    +'<div class="dd-grid">'
@@ -1026,7 +1087,11 @@ function openDriver(did){
    +'</div>'
    + (x.photo?'<div class="dd-photo"><img src="'+esc(x.photo)+'" alt="" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>':'')
    +'</div>'
-   +'<div class="dd-bars-wrap"><div class="dd-bars-h">2026 Points by Round</div>'+barChart(x.byround,x.color)+'</div>';
+   +'<div class="dd-charts">'
+   +'<div class="dd-chart"><div class="dd-ct">Season Performance</div>'+donutTriple(x.perf,x.color)+'</div>'
+   +'<div class="dd-chart"><div class="dd-ct">Finish Positions in Points</div>'+donutPct(x.perf,x.color)+'</div>'
+   +'<div class="dd-chart"><div class="dd-ct">Points Evolution vs 2025</div>'+evoLine(x.evo26,x.evo25,x.color)+'</div>'
+   +'</div>';
   var det=document.getElementById('drv-detail'); det.innerHTML=html; det.scrollTop=0;
   document.getElementById('drv-modal').classList.add('open'); document.body.style.overflow='hidden';
 }
