@@ -42,8 +42,7 @@ def team_color(cid): return TEAM_COLORS.get(cid, "#8E8E93")
 NAV = [
     ("dashboard.html", "Overview"), ("live-timing.html", "Live Timing"),
     ("schedule.html", "Schedule"), ("results.html", "Results"),
-    ("drivers.html", "Drivers"),
-    ("driver-stats.html", "Stats"), ("prediction.html", "Prediction"),
+    ("prediction.html", "Prediction"),
 ]
 
 # editorial splash hero image — CC BY-SA 4.0, Lukas Raich (Wikimedia Commons):
@@ -1004,8 +1003,12 @@ def main():
         "standings.html": ('<!DOCTYPE html><meta charset="utf-8">'
                            '<meta http-equiv="refresh" content="0; url=dashboard.html">'
                            '<a href="dashboard.html">Standings are on the dashboard →</a>'),
-        "drivers.html": build_drivers(d),
-        "driver-stats.html": build_stats(d, ctx),
+        "drivers.html": ('<!DOCTYPE html><meta charset="utf-8">'
+                         '<meta http-equiv="refresh" content="0; url=dashboard.html">'
+                         '<a href="dashboard.html">→ Dashboard</a>'),
+        "driver-stats.html": ('<!DOCTYPE html><meta charset="utf-8">'
+                              '<meta http-equiv="refresh" content="0; url=dashboard.html">'
+                              '<a href="dashboard.html">→ Dashboard</a>'),
         "prediction.html": build_prediction(d, ctx),
     }
     for name, html_str in pages.items():
