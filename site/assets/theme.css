@@ -405,9 +405,9 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 /* radar + sector/scatter legends */
 .radar-ax{fill:#cfcdd6;font-family:'Titillium Web';font-weight:700;font-size:11px}
 .radar-leg{fill:#cfcdd6;font-family:'Titillium Web';font-weight:600;font-size:12px}
-/* top-3 session-bests table fills its card (not flex-centred) */
-.chart-grid .ch-host.t3-table-host{display:block;align-self:stretch}
-.t3-table-host .std-table{font-size:13px}
+/* top-3 session-bests table: full width, vertically centred to match the radar */
+.chart-grid .ch-host.t3-table-host{display:flex;align-items:center;justify-content:center}
+.t3-table-host .std-table{width:100%;font-size:13px}
 
 /* ── page scaffolding ───────────────────────────────────────────────────── */
 main{padding:28px 0 80px}
