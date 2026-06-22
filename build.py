@@ -916,6 +916,16 @@ def build_drivers(d):
                 return f"assets/drivers/{fn}"
         return None
 
+    # drivers whose OFFICIAL F1 headshot is stale for 2026 — a mid-career team switch
+    # (Hadjar → Red Bull) still showing last year's suit, or a rookie with only the
+    # generic placeholder image. For these, use a real 2026 photo instead.
+    STALE_HEADSHOT = {"hadjar", "arvid_lindblad"}
+    def detail_photo(x):
+        did = x["driverId"]
+        if did in STALE_HEADSHOT:
+            return custom_img(x) or dphotos.get(did) or photo(x.get("num")) or ""
+        return photo(x.get("num")) or dphotos.get(did) or custom_img(x) or ""
+
     # 2026 per-round points (race + sprint), GPs and top-10s per driver
     def _fin(s):
         s = s or ""
@@ -990,7 +1000,7 @@ def build_drivers(d):
             "given": x["given"], "family": x["family"], "code": x.get("code"),
             "team": short_team(x["constructor"]), "color": team_color(cid),
             "flag": flag(x["nationality"]), "nat": x["nationality"],
-            "photo": photo(x.get("num")) or dphotos.get(did) or "",
+            "photo": detail_photo(x),
             "career": career, "s2026": s2026, "perf": perf, "qr": qr,
             "evo26": _cum(rnd_pts[did], sorted(rnd_pts[did].keys())),
             "evo25": _cum(pts25[did], rounds25), "cpos": x["pos"],
