@@ -216,7 +216,11 @@ def build_results(d, ctx):
     <div class="ana-sec">Tyre</div>
     <div class="chart-grid">
       <div class="card-chart" data-zoom><div class="ch-title">Tyre Strategies</div>{tyre_key}<div class="ch-host" id="ch-tyre"></div></div>
-      <div class="card-chart" data-zoom><div class="ch-title">Tyre Age per Lap</div><div class="ch-host" id="ch-tyreage"></div></div>
+      <div class="card-chart" data-zoom><div class="ch-title">Tyre Age vs Optimal Life</div>
+        <div class="tyre-key"><span><i class="tk-solid"></i>Laps run</span>
+          <span><i class="tk-dash"></i>Optimal life</span><span><i style="background:#ff2e2e"></i>Beyond optimal</span>
+          <span class="rmx-note" style="margin-left:auto">Soft ~20 · Medium ~30 · Hard ~42 laps (indicative)</span></div>
+        <div class="ch-host" id="ch-tyreage"></div></div>
     </div>
 
     <div class="ch-modal" id="ch-modal" onclick="closeZoom(event)">
@@ -275,7 +279,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 function boxChart(elId, groups){
   var el=document.getElementById(elId);
   if(!groups.length){el.innerHTML='<div class="ch-empty">No lap data.</div>';return;}
-  var W=Math.max(700, groups.length*82+96), H=400, L=58, R=18, T=16, B=64;
+  var W=900, H=440, L=58, R=18, T=16, B=64;
   var all=[]; groups.forEach(function(g){all.push(g.stats.wlo,g.stats.whi); g.stats.out.forEach(function(o){all.push(o);});});
   var lo=Math.min.apply(null,all), hi=Math.max.apply(null,all), pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
   var pw=W-L-R, ph=H-T-B;
@@ -303,7 +307,7 @@ function boxChart(elId, groups){
 function posChart(elId, drivers, totalLaps){
   var el=document.getElementById(elId);
   var maxP=20; drivers.forEach(function(d){d.pos.forEach(function(p){if(p[1]>maxP)maxP=p[1];});});
-  var W=Math.max(720, totalLaps*15+150), H=440, L=42, R=124, T=14, B=40;
+  var W=900, H=470, L=42, R=124, T=14, B=40;
   var pw=W-L-R, ph=H-T-B, span=Math.max(1,totalLaps-1);
   function X(l){return L+pw*(l-1)/span;}
   function Y(p){return T+ph*(p-1)/(maxP-1);}
@@ -325,26 +329,45 @@ function posChart(elId, drivers, totalLaps){
   el.innerHTML=svg(W,H,g);
 }
 
-/* ---------- tyre strategy gantt ---------- */
+/* ---------- tyre data + helpers ---------- */
 var TYRE={SOFT:'#E1112A',MEDIUM:'#F3D34A',HARD:'#E6E6E6',INTERMEDIATE:'#42A65A',WET:'#3A74D0'};
+var TYRE_GRAD={SOFT:['#ff6470','#E1112A','#7d0a18'],MEDIUM:['#ffe98a','#F3D34A','#b2920f'],
+ HARD:['#ffffff','#dadada','#8c8c8c'],INTERMEDIATE:['#63d77e','#42A65A','#1f6b33'],WET:['#5e93e2','#3A74D0','#1c4488']};
+var TYRE_OPT={SOFT:20,MEDIUM:30,HARD:42,INTERMEDIATE:28,WET:32};   // indicative optimal life (laps)
+var STOPW=['ZERO','ONE','TWO','THREE','FOUR','FIVE','SIX'];
 function tyreTxt(c){return (c==='HARD'||c==='MEDIUM')?'#15151E':'#fff';}
+function tyreDefs(){var s='<defs>';for(var k in TYRE_GRAD){var v=TYRE_GRAD[k];
+  s+='<linearGradient id="tg-'+k+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+v[0]+'"/>'
+    +'<stop offset="0.5" stop-color="'+v[1]+'"/><stop offset="1" stop-color="'+v[2]+'"/></linearGradient>';}
+  return s+'</defs>';}
+function wheel(cx,cy,r,ring){
+  var s='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#0c0c12" stroke="'+ring+'" stroke-width="'+(r*0.36).toFixed(1)+'"/>'
+   +'<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*0.3).toFixed(1)+'" fill="#3a3a44"/>';
+  for(var k=0;k<6;k++){var a=k*Math.PI/3;
+    s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+(cx+Math.cos(a)*r*0.58).toFixed(1)+'" y2="'+(cy+Math.sin(a)*r*0.58).toFixed(1)+'" stroke="#56565f" stroke-width="0.8"/>';}
+  return s;}
+function gd(c){return TYRE_GRAD[c]?c:'HARD';}
+
+/* ---------- tyre strategy gantt (Pirelli-style) ---------- */
 function tyreChart(elId, drivers, totalLaps){
   var rows=drivers.filter(function(d){return d.stints.length;}).sort(function(a,b){return a.fin-b.fin;});
-  var rowH=22, gap=6, L=52, R=18, T=10, B=30, W=1010;
+  var rowH=24, gap=8, L=50, R=74, T=14, B=30, W=1040;
   var ph=rows.length*(rowH+gap), H=T+ph+B, pw=W-L-R;
   function X(l){return L+pw*l/Math.max(1,totalLaps);}
-  var g='';
+  var g=tyreDefs();
   for(var l=0;l<=totalLaps;l+=6){var x=X(l);
     g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(T+ph)+'" class="ch-grid"/>';
     g+='<text x="'+x+'" y="'+(T+ph+16)+'" class="ch-xlab" text-anchor="middle">'+l+'</text>';}
   rows.forEach(function(d,i){
-    var y=T+i*(rowH+gap);
-    g+='<text x="'+(L-8)+'" y="'+(y+rowH*0.7)+'" class="ch-row" text-anchor="end">'+d.code+'</text>';
+    var y=T+i*(rowH+gap), cy=y+rowH/2;
+    g+='<text x="'+(L-10)+'" y="'+(cy+4)+'" class="ch-row" text-anchor="end">'+d.code+'</text>';
     d.stints.forEach(function(s){
-      var c=s[0], x0=X(s[1]-1), w=X(s[2])-x0, col=TYRE[c]||'#777', n=s[2]-s[1]+1;
-      g+='<rect x="'+x0.toFixed(1)+'" y="'+y+'" width="'+Math.max(1,w).toFixed(1)+'" height="'+rowH+'" rx="3" fill="'+col+'"><title>'+d.code+' — '+c+' · laps '+(s[1]-1)+'-'+s[2]+' ('+n+')</title></rect>';
-      if(w>40) g+='<text x="'+(x0+w/2).toFixed(1)+'" y="'+(y+rowH*0.68)+'" class="ch-stint" fill="'+tyreTxt(c)+'" text-anchor="middle">'+(s[1]-1)+'-'+s[2]+' ('+n+')</text>';
+      var c=s[0], x0=X(s[1]-1), w=X(s[2])-x0, n=s[2]-s[1]+1;
+      g+='<rect x="'+x0.toFixed(1)+'" y="'+y+'" width="'+Math.max(1,w).toFixed(1)+'" height="'+rowH+'" rx="5" fill="url(#tg-'+gd(c)+')" stroke="rgba(0,0,0,.35)"><title>'+d.code+' — '+c+' · laps '+(s[1]-1)+'–'+s[2]+' ('+n+')</title></rect>';
+      if(w>52) g+='<text x="'+(x0+w/2).toFixed(1)+'" y="'+(cy+3.5)+'" class="ch-stint" fill="'+tyreTxt(c)+'" text-anchor="middle">'+(s[1]-1)+'–'+s[2]+'</text>';
+      g+=wheel(x0+9, cy, 8, TYRE[c]||'#777');
     });
+    g+='<text x="'+(W-R+8)+'" y="'+(cy+4)+'" class="tyre-stop" text-anchor="start">'+STOPW[d.stints.length-1]+'-STOP</text>';
   });
   document.getElementById(elId).innerHTML=svg(W,H,g);
 }
@@ -385,8 +408,8 @@ function skBand(x0,y0,x1,y1,h,color,tip){
 function sankeyChart(elId, prog){
   var el=document.getElementById(elId);
   if(!prog||!prog.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
-  var n=prog.length, rowH=Math.max(16,Math.min(26,540/n)), nodeH=rowH*0.6, nodeW=11;
-  var T=34,B=12,W=960,Lx=92,Rx=W-92,Gx=(Lx+Rx)/2,H=T+B+n*rowH;
+  var n=prog.length, T=34, B=14, W=900, H=470, Lx=92, Rx=W-92, Gx=(Lx+Rx)/2;
+  var rowH=(H-T-B)/n, nodeH=Math.min(15,rowH*0.62), nodeW=11;
   function Y(p){return T+(p-0.5)*rowH;}
   function col(a,b){return b<a?'#27D45F':(b>a?'#E1112A':'#3671C6');}
   var g='';
@@ -407,34 +430,37 @@ function sankeyChart(elId, prog){
   el.innerHTML=svg(W,H,g);
 }
 
-/* ---------- tyre age per lap ---------- */
-function tyreAgeChart(elId, drivers, totalLaps){
+/* ---------- tyre age vs optimal life (per driver, per stint) ---------- */
+function tyreAgeChart(elId, drivers){
   var el=document.getElementById(elId);
-  var series=drivers.filter(function(d){return d.stints.length;}).map(function(d){
-    var segs=d.stints.map(function(s){var p=[];for(var L=s[1];L<=s[2];L++)p.push([L,L-s[1]+1]);return p;});
-    return {code:d.code,color:d.color,segs:segs,last:d.stints[d.stints.length-1]};});
-  var maxA=1; series.forEach(function(s){s.segs.forEach(function(seg){seg.forEach(function(p){if(p[1]>maxA)maxA=p[1];});});});
-  var W=Math.max(720,totalLaps*15+150),H=400,L=44,R=120,T=14,B=40,pw=W-L-R,ph=H-T-B,span=Math.max(1,totalLaps-1);
-  function X(l){return L+pw*(l-1)/span;}
-  function Y(a){return T+ph*(1-a/maxA);}
-  var g='', step=Math.ceil(maxA/6)||1;
-  for(var a=0;a<=maxA;a+=step){var y=Y(a);
-    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/>';
-    g+='<text x="'+(L-6)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+a+'</text>';}
-  for(var l=10;l<=totalLaps;l+=10){var x=X(l);
-    g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(H-B)+'" class="ch-grid"/>';
-    g+='<text x="'+x+'" y="'+(H-B+16)+'" class="ch-xlab" text-anchor="middle">'+l+'</text>';}
-  series.forEach(function(s){
-    s.segs.forEach(function(seg){
-      if(seg.length<2 && seg.length)seg.push(seg[0]);
-      var pts=seg.map(function(p){return X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);}).join(' ');
-      g+='<polyline points="'+pts+'" fill="none" stroke="'+s.color+'" stroke-width="1.5" stroke-opacity="0.85"><title>'+s.code+'</title></polyline>';
+  var rows=drivers.filter(function(d){return d.stints.length;}).sort(function(a,b){return a.fin-b.fin;});
+  if(!rows.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
+  var rowH=24, gap=8, L=50, R=16, T=14, B=30, W=1040, segGap=12;
+  var maxRow=1, maxStints=1;
+  rows.forEach(function(d){var sum=0;
+    d.stints.forEach(function(s){sum+=Math.max(s[2]-s[1]+1, TYRE_OPT[s[0]]||30);});
+    maxRow=Math.max(maxRow,sum); maxStints=Math.max(maxStints,d.stints.length);});
+  var lapPx=(W-L-R-(maxStints-1)*segGap)/maxRow;
+  var ph=rows.length*(rowH+gap), H=T+ph+B;
+  var g=tyreDefs();
+  rows.forEach(function(d,i){
+    var y=T+i*(rowH+gap), cy=y+rowH/2, x=L;
+    g+='<text x="'+(L-10)+'" y="'+(cy+4)+'" class="ch-row" text-anchor="end">'+d.code+'</text>';
+    d.stints.forEach(function(s){
+      var c=s[0], n=s[2]-s[1]+1, o=TYRE_OPT[c]||30, col=TYRE[c]||'#777';
+      var wOpt=o*lapPx, wWithin=Math.min(n,o)*lapPx, wOver=Math.max(0,n-o)*lapPx, wMax=Math.max(wOpt,wWithin+wOver);
+      // optimal-life reference (dashed outline)
+      g+='<rect x="'+x.toFixed(1)+'" y="'+y+'" width="'+wOpt.toFixed(1)+'" height="'+rowH+'" rx="4" fill="none" stroke="'+col+'" stroke-opacity="0.55" stroke-dasharray="3 3"/>';
+      // laps actually run (within optimal)
+      g+='<rect x="'+x.toFixed(1)+'" y="'+(y+3)+'" width="'+wWithin.toFixed(1)+'" height="'+(rowH-6)+'" rx="3" fill="url(#tg-'+gd(c)+')"><title>'+d.code+' — '+c+': '+n+' laps run vs ~'+o+' optimal ('+(n-o>=0?'+':'')+(n-o)+')</title></rect>';
+      // laps beyond optimal (over-extended)
+      if(wOver>0.5) g+='<rect x="'+(x+wWithin).toFixed(1)+'" y="'+(y+3)+'" width="'+wOver.toFixed(1)+'" height="'+(rowH-6)+'" rx="3" fill="#ff2e2e"><title>'+d.code+' — '+(n-o)+' laps beyond optimal</title></rect>';
+      var solidW=wWithin+wOver, lc=wOver>0.5?'#fff':tyreTxt(c);
+      if(solidW>15) g+='<text x="'+(x+solidW/2).toFixed(1)+'" y="'+(cy+3.5)+'" class="ch-stint" fill="'+lc+'" text-anchor="middle">'+n+'</text>';
+      else g+='<text x="'+(x+solidW+5).toFixed(1)+'" y="'+(cy+3.5)+'" class="ch-stint" fill="#9a9aa3" text-anchor="start">'+n+'</text>';
+      x+=wMax+segGap;
     });
-    var le=s.segs[s.segs.length-1], lp=le[le.length-1];
-    g+='<text x="'+(X(lp[0])+5)+'" y="'+(Y(lp[1])+3)+'" class="ch-tag" fill="'+s.color+'">'+s.code+'</text>';
   });
-  g+='<text x="'+(L+pw/2)+'" y="'+(H-3)+'" class="ch-axtitle" text-anchor="middle">Lap</text>';
-  g+='<text x="14" y="'+(T+ph/2)+'" class="ch-axtitle" transform="rotate(-90 14 '+(T+ph/2)+')" text-anchor="middle">Tyre Age (laps)</text>';
   el.innerHTML=svg(W,H,g);
 }
 
@@ -472,7 +498,7 @@ function renderAX(){
     .sort(function(a,b){return a.stats.med-b.stats.med;});
   boxChart('ch-pace', tg);
   tyreChart('ch-tyre', drv, R.total_laps);
-  tyreAgeChart('ch-tyreage', drv, R.total_laps);
+  tyreAgeChart('ch-tyreage', drv);
 }
 
 renderMatrix();

@@ -395,6 +395,14 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .ch-modal-host{overflow:auto;padding:16px}
 .ch-modal-host svg{width:100%;height:auto;max-height:84vh;min-width:0}
 
+/* paired charts: equal height + vertically-centred so a legend on one card
+   doesn't push its chart out of line with the other */
+.chart-grid .card-chart{display:flex;flex-direction:column}
+.chart-grid .ch-host{flex:1;display:flex;align-items:center;justify-content:center}
+.tyre-stop{fill:#cfcdd6;font-family:'Titillium Web';font-weight:700;font-size:10px;letter-spacing:.05em}
+.tyre-key i.tk-solid{background:linear-gradient(180deg,#cfcfcf,#7a7a7a)}
+.tyre-key i.tk-dash{background:transparent;border:1.5px dashed #9a9aa3}
+
 /* ── page scaffolding ───────────────────────────────────────────────────── */
 main{padding:28px 0 80px}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;
