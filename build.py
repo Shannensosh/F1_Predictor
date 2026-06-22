@@ -893,7 +893,9 @@ if(document.readyState!=='loading')initMap();else window.addEventListener('DOMCo
 def build_drivers(d):
     standings = d["standings"]; drivers = standings["drivers"]
     careers = d.get("careers", {}); stats = d.get("stats", {})
-    results, sprint, sched = d["results"], d["sprint"], d["sched"]
+    results, sprint, sched, quali = d["results"], d["sprint"], d["sched"], d["quali"]
+    qmap = {(r["round"], q["driverId"]): q["pos"]
+            for r in quali.get("2026", []) for q in r["results"]}
     photos = standings.get("photos", {}); dphotos = standings.get("driver_photos", {})
     def photo(num): return photos.get(str(num))
 
@@ -977,12 +979,19 @@ def build_drivers(d):
                  "podiums": st.get("podiums", 0), "poles": st.get("poles", 0), "gps": gps26[did]}
         perf = {"races": gps26[did], "wins": x.get("wins") or 0, "podiums": st.get("podiums", 0),
                 "inpoints": inpts26[did], "dnf": dnf26[did]}
+        qr = []
+        for race in results.get("2026", []):
+            res = next((r for r in race["results"] if r["driverId"] == did), None)
+            if not res:
+                continue
+            rp = res["pos"] if isinstance(res["pos"], int) else None
+            qr.append([qmap.get((race["round"], did)), rp])
         DRV[did] = {
             "given": x["given"], "family": x["family"], "code": x.get("code"),
             "team": short_team(x["constructor"]), "color": team_color(cid),
             "flag": flag(x["nationality"]), "nat": x["nationality"],
             "photo": photo(x.get("num")) or dphotos.get(did) or "",
-            "career": career, "s2026": s2026, "perf": perf,
+            "career": career, "s2026": s2026, "perf": perf, "qr": qr,
             "evo26": _cum(rnd_pts[did], sorted(rnd_pts[did].keys())),
             "evo25": _cum(pts25[did], rounds25), "cpos": x["pos"],
         }
@@ -1069,6 +1078,34 @@ function evoLine(e26,e25,color){
    +'<rect x="'+(L+60)+'" y="8" width="10" height="10" rx="2" fill="#6b6b73"/><text x="'+(L+75)+'" y="17" class="dd-bx">2025</text>';
   return svg(W,H,g);
 }
+function sankeyAgg(qr,color){
+  var BK=[['P1-3',1,3],['P4-6',4,6],['P7-10',7,10],['P11-15',11,15],['P16-20',16,22]];
+  function bk(p){if(p==null)return 'DNF';for(var i=0;i<BK.length;i++)if(p>=BK[i][1]&&p<=BK[i][2])return BK[i][0];return 'P16-20';}
+  var ORD=['P1-3','P4-6','P7-10','P11-15','P16-20','DNF'], idx={}; ORD.forEach(function(o,i){idx[o]=i;});
+  var ql={},rl={},flows={},total=0;
+  qr.forEach(function(p){if(p[0]==null)return;var qb=bk(p[0]),rb=bk(p[1]);
+    ql[qb]=(ql[qb]||0)+1; rl[rb]=(rl[rb]||0)+1; flows[qb+'>'+rb]=(flows[qb+'>'+rb]||0)+1; total++;});
+  if(!total) return '<div class="dd-nobars">No qualifying data yet.</div>';
+  var W=336,H=196,T=22,B=10,Lx=64,Rx=W-64,nodeW=9;
+  var qOrd=ORD.filter(function(o){return ql[o];}), rOrd=ORD.filter(function(o){return rl[o];});
+  var gap=7, px=(H-T-B-gap*(Math.max(qOrd.length,rOrd.length)-1))/total;
+  function lay(ord,cnt){var y=T,pos={};ord.forEach(function(o){var h=cnt[o]*px;pos[o]={y:y,h:h,off:0};y+=h+gap;});return pos;}
+  var QP=lay(qOrd,ql), RP=lay(rOrd,rl);
+  function col(a,b){return b<a?'#27D45F':(b>a?'#E1112A':'#3671C6');}
+  var g='<text x="'+Lx+'" y="14" class="sk-h" text-anchor="end">Qualifying</text>'
+   +'<text x="'+Rx+'" y="14" class="sk-h" text-anchor="start">Race</text>';
+  qOrd.forEach(function(qb){rOrd.forEach(function(rb){var c=flows[qb+'>'+rb]; if(!c)return;
+    var h=c*px, y0=QP[qb].y+QP[qb].off+h/2, y1=RP[rb].y+RP[rb].off+h/2; QP[qb].off+=h; RP[rb].off+=h;
+    var x0=Lx+nodeW, x1=Rx-nodeW, cx=(x0+x1)/2;
+    var d='M'+x0+','+(y0-h/2).toFixed(1)+' C'+cx+','+(y0-h/2).toFixed(1)+' '+cx+','+(y1-h/2).toFixed(1)+' '+x1+','+(y1-h/2).toFixed(1)
+      +' L'+x1+','+(y1+h/2).toFixed(1)+' C'+cx+','+(y1+h/2).toFixed(1)+' '+cx+','+(y0+h/2).toFixed(1)+' '+x0+','+(y0+h/2).toFixed(1)+'Z';
+    g+='<path d="'+d+'" fill="'+col(idx[qb],idx[rb])+'" fill-opacity="0.42"><title>Qual '+qb+' → Race '+rb+': '+c+' race'+(c>1?'s':'')+'</title></path>';});});
+  qOrd.forEach(function(o){g+='<rect x="'+Lx+'" y="'+QP[o].y.toFixed(1)+'" width="'+nodeW+'" height="'+Math.max(2,QP[o].h).toFixed(1)+'" rx="2" fill="'+color+'"/>'
+    +'<text x="'+(Lx-5)+'" y="'+(QP[o].y+QP[o].h/2+3).toFixed(1)+'" class="sk-l" text-anchor="end">'+o+' ('+ql[o]+')</text>';});
+  rOrd.forEach(function(o){g+='<rect x="'+(Rx-nodeW)+'" y="'+RP[o].y.toFixed(1)+'" width="'+nodeW+'" height="'+Math.max(2,RP[o].h).toFixed(1)+'" rx="2" fill="'+(o==='DNF'?'#6b6b73':color)+'"/>'
+    +'<text x="'+(Rx+5)+'" y="'+(RP[o].y+RP[o].h/2+3).toFixed(1)+'" class="sk-l" text-anchor="start">'+o+' ('+rl[o]+')</text>';});
+  return svg(W,H,g);
+}
 function openDriver(did){
   var x=D[did]; if(!x)return; var c=x.career, s=x.s2026;
   var html='<button class="drv-close" onclick="closeDriver(event)">‹ Back</button>'
@@ -1087,9 +1124,9 @@ function openDriver(did){
    +'</div>'
    + (x.photo?'<div class="dd-photo"><img src="'+esc(x.photo)+'" alt="" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>':'')
    +'</div>'
-   +'<div class="dd-charts">'
-   +'<div class="dd-chart"><div class="dd-ct">Season Performance</div>'+donutTriple(x.perf,x.color)+'</div>'
-   +'<div class="dd-chart"><div class="dd-ct">Finish Positions in Points</div>'+donutPct(x.perf,x.color)+'</div>'
+   +'<div class="dd-charts"><div class="dd-section-h">Season Performance</div>'
+   +'<div class="dd-chart"><div class="dd-ct">Results Breakdown</div>'+donutTriple(x.perf,x.color)+'</div>'
+   +'<div class="dd-chart"><div class="dd-ct">Qualifying → Race</div>'+sankeyAgg(x.qr,x.color)+'</div>'
    +'<div class="dd-chart"><div class="dd-ct">Points Evolution vs 2025</div>'+evoLine(x.evo26,x.evo25,x.color)+'</div>'
    +'</div>';
   var det=document.getElementById('drv-detail'); det.innerHTML=html; det.scrollTop=0;

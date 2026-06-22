@@ -446,8 +446,12 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .dd-photo img{height:100%;width:auto;max-width:100%;object-fit:contain;object-position:bottom right;
   filter:drop-shadow(0 10px 24px rgba(0,0,0,.5))}
 /* 3 infographics in one row */
-.dd-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:16px 22px 22px;
+.dd-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 22px 22px;
   border-top:1px solid var(--outline-2);background:#0c0c12}
+.dd-charts .dd-section-h{grid-column:1/-1;text-align:center;font-family:'Titillium Web';font-weight:800;
+  font-size:18px;letter-spacing:.03em;text-transform:uppercase;color:var(--lime);margin:2px 0 2px}
+.sk-h{fill:#cfcdd6;font-family:'Titillium Web';font-weight:700;font-size:11px;letter-spacing:.04em}
+.sk-l{fill:#b9b9c2;font-family:'JetBrains Mono';font-size:9.5px}
 .dd-chart{border:1px solid var(--outline-2);border-radius:var(--r-lg);background:#101016;padding:12px 12px 8px}
 .dd-ct{font-family:'Titillium Web';font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
   color:var(--lime);text-align:center;margin-bottom:6px}
