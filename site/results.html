@@ -41,9 +41,7 @@
     <div class="ana-sec">Positions</div>
     <div class="chart-grid">
       <div class="card-chart" data-zoom><div class="ch-title">Race Position Changes</div><div class="ch-host" id="ch-pos"></div></div>
-      <div class="card-chart" data-zoom><div class="ch-title">Qualifying → Grid → Race</div><div class="tyre-key">
-        <span><i style="background:#27D45F"></i>Gained</span><span><i style="background:#E1112A"></i>Lost</span>
-        <span><i style="background:#3671C6"></i>Same</span></div><div class="ch-host" id="ch-sankey"></div></div>
+      <div class="card-chart" data-zoom><div class="ch-title">Qualifying → Grid → Race</div><div class="ch-host" id="ch-prog"></div></div>
     </div>
 
     <div class="ana-sec">Pacing</div>
@@ -242,34 +240,30 @@ function renderOverview(ov){
    +ovTile(IC.x, ''+ov.dnfs, (ov.dnfs?'red':'wht'), 'DNFs', ov.classified+'/'+ov.total+' classified');
 }
 
-/* ---------- sankey: qualifying -> grid -> race ---------- */
-function skBand(x0,y0,x1,y1,h,color,tip){
-  var cx=(x0+x1)/2;
-  var d='M'+x0+','+(y0-h/2)+' C'+cx+','+(y0-h/2)+' '+cx+','+(y1-h/2)+' '+x1+','+(y1-h/2)
-    +' L'+x1+','+(y1+h/2)+' C'+cx+','+(y1+h/2)+' '+cx+','+(y0+h/2)+' '+x0+','+(y0+h/2)+' Z';
-  return '<path class="sk-band" d="'+d+'" fill="'+color+'" fill-opacity="0.42"><title>'+tip+'</title></path>';
-}
-function sankeyChart(elId, prog){
+/* ---------- qualifying -> grid -> race progression (slope lines) ---------- */
+function progChart(elId, prog){
   var el=document.getElementById(elId);
   if(!prog||!prog.length){el.innerHTML='<div class="ch-empty">No data.</div>';return;}
-  var n=prog.length, T=34, B=14, W=900, H=470, Lx=92, Rx=W-92, Gx=(Lx+Rx)/2;
-  var rowH=(H-T-B)/n, nodeH=Math.min(15,rowH*0.62), nodeW=11;
-  function Y(p){return T+(p-0.5)*rowH;}
-  function col(a,b){return b<a?'#27D45F':(b>a?'#E1112A':'#3671C6');}
+  var maxP=20; prog.forEach(function(d){[d.q,d.g,d.r].forEach(function(v){if(v&&v>maxP)maxP=v;});});
+  var W=900, H=470, L=42, R=124, T=14, B=40, pw=W-L-R, ph=H-T-B;
+  var stages=[['Qualifying','q'],['Grid','g'],['Race','r']];
+  function X(i){return L+pw*i/(stages.length-1);}
+  function Y(p){return T+ph*(p-1)/(maxP-1);}
   var g='';
-  g+='<text x="'+Lx+'" y="20" class="sk-head" text-anchor="end">Qualifying</text>';
-  g+='<text x="'+Gx+'" y="20" class="sk-head" text-anchor="middle">Grid</text>';
-  g+='<text x="'+Rx+'" y="20" class="sk-head" text-anchor="start">Race</text>';
+  for(var p=1;p<=maxP;p+=5){var y=Y(p);
+    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" class="ch-grid"/>';
+    g+='<text x="'+(L-6)+'" y="'+(y+3)+'" class="ch-ylab" text-anchor="end">'+p+'</text>';}
+  stages.forEach(function(st,i){var x=X(i), anc=i===0?'start':(i===stages.length-1?'end':'middle');
+    g+='<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+(H-B)+'" class="ch-grid"/>';
+    g+='<text x="'+x+'" y="'+(H-B+20)+'" class="sk-head" text-anchor="'+anc+'">'+st[0]+'</text>';});
   prog.forEach(function(d){
-    if(d.q!=null&&d.g!=null) g+=skBand(Lx+nodeW,Y(d.q),Gx-nodeW/2,Y(d.g),nodeH,col(d.q,d.g),d.code+': Q P'+d.q+' → Grid P'+d.g);
-    if(d.g!=null&&d.r!=null) g+=skBand(Gx+nodeW/2,Y(d.g),Rx-nodeW,Y(d.r),nodeH,col(d.g,d.r),d.code+': Grid P'+d.g+' → Race P'+d.r);
-  });
-  prog.forEach(function(d){
-    if(d.q!=null){g+='<rect x="'+Lx+'" y="'+(Y(d.q)-nodeH/2)+'" width="'+nodeW+'" height="'+nodeH+'" rx="2" fill="'+d.color+'"/>';
-      g+='<text x="'+(Lx-6)+'" y="'+(Y(d.q)+3)+'" class="sk-lab" text-anchor="end">P'+d.q+' '+d.code+'</text>';}
-    if(d.g!=null) g+='<rect x="'+(Gx-nodeW/2)+'" y="'+(Y(d.g)-nodeH/2)+'" width="'+nodeW+'" height="'+nodeH+'" rx="2" fill="'+d.color+'"/>';
-    if(d.r!=null){g+='<rect x="'+(Rx-nodeW)+'" y="'+(Y(d.r)-nodeH/2)+'" width="'+nodeW+'" height="'+nodeH+'" rx="2" fill="'+d.color+'"/>';
-      g+='<text x="'+(Rx+6)+'" y="'+(Y(d.r)+3)+'" class="sk-lab" text-anchor="start">P'+d.r+' '+d.code+'</text>';}
+    var pts=[]; stages.forEach(function(st,i){var v=d[st[1]]; if(v!=null)pts.push([i,v]);});
+    if(pts.length<2)return;
+    var poly=pts.map(function(p){return X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);}).join(' ');
+    g+='<polyline points="'+poly+'" fill="none" stroke="'+d.color+'" stroke-width="1.8" stroke-opacity="0.9"><title>'+d.code+': Q P'+(d.q||'–')+' → Grid P'+(d.g||'–')+' → Race P'+d.r+'</title></polyline>';
+    pts.forEach(function(p){g+='<circle cx="'+X(p[0]).toFixed(1)+'" cy="'+Y(p[1]).toFixed(1)+'" r="2.6" fill="'+d.color+'"/>';});
+    var last=pts[pts.length-1];
+    g+='<text x="'+(X(last[0])+6)+'" y="'+(Y(last[1])+3)+'" class="ch-tag" fill="'+d.color+'">'+d.code+'</text>';
   });
   el.innerHTML=svg(W,H,g);
 }
@@ -331,7 +325,7 @@ function renderAX(){
   var drv=R.drivers;
   renderOverview(R.ov);
   posChart('ch-pos', drv, R.total_laps);
-  sankeyChart('ch-sankey', R.prog);
+  progChart('ch-prog', R.prog);
   var top=drv.filter(function(d){return d.laps&&d.laps.length>=3;}).sort(function(a,b){return a.fin-b.fin;}).slice(0,10);
   boxChart('ch-box', top.map(function(d){return {label:d.code,color:d.color,stats:quart(d.laps)};}));
   var teams={};
