@@ -19,9 +19,11 @@
 </div></header>
 <main><div class="wrap">
 <div class="page-head"><div><h1>Results</h1><p>Every driver and every session of the 2026 season — finishing positions and points, then a per-race breakdown: race summary, position changes, pace and tyre strategy.</p></div></div><section class="res-sec">
-    <div class="sec-head"><h2>Season Results</h2>
-      <div class="sec-sub">Every driver, every session · 7 of 22 rounds run</div></div>
-    <div class="toolbar"><div class="seg" id="catseg"><button class="active" data-cat="Race" onclick="setCat(this)">Race</button><button class="" data-cat="Qualifying" onclick="setCat(this)">Qualifying</button><button class="" data-cat="Sprint" onclick="setCat(this)">Sprint</button><button class="" data-cat="FP1" onclick="setCat(this)">FP1</button><button class="" data-cat="FP2" onclick="setCat(this)">FP2</button><button class="" data-cat="FP3" onclick="setCat(this)">FP3</button></div></div>
+    <div class="res-freeze">
+      <div class="sec-head"><h2>Season Results</h2>
+        <div class="sec-sub">Every driver, every session · 7 of 22 rounds run</div></div>
+      <div class="toolbar"><div class="seg" id="catseg"><button class="active" data-cat="Race" onclick="setCat(this)">Race</button><button class="" data-cat="Qualifying" onclick="setCat(this)">Qualifying</button><button class="" data-cat="Sprint" onclick="setCat(this)">Sprint</button><button class="" data-cat="FP1" onclick="setCat(this)">FP1</button><button class="" data-cat="FP2" onclick="setCat(this)">FP2</button><button class="" data-cat="FP3" onclick="setCat(this)">FP3</button></div></div>
+    </div>
     <div class="rmx-wrap" id="mxwrap"></div>
     
     <div class="rmx-legend">
@@ -31,9 +33,11 @@
       <span class="rmx-note">cell = finishing position · <sup>n</sup> = points (Race &amp; Sprint) ·
         “·S” marks a sprint round · hover for detail</span>
     </div></section><section class="res-sec">
-    <div class="sec-head" style="margin-top:40px"><h2>Race Analysis</h2>
-      <div class="sec-sub">Race summary, on-track swings, pace and tyre strategy for any Grand Prix</div></div>
-    <div class="toolbar"><select id="axsel" onchange="renderAX()"><option value="1">R1 · Australian Grand Prix</option><option value="2">R2 · Chinese Grand Prix</option><option value="3">R3 · Japanese Grand Prix</option><option value="4">R4 · Miami Grand Prix</option><option value="5">R5 · Canadian Grand Prix</option><option value="6">R6 · Monaco Grand Prix</option><option value="7">R7 · Barcelona Grand Prix</option></select></div>
+    <div class="res-freeze">
+      <div class="sec-head"><h2>Race Analysis</h2>
+        <div class="sec-sub">Race summary, on-track swings, pace and tyre strategy for any Grand Prix</div></div>
+      <div class="toolbar"><select id="axsel" onchange="renderAX()"><option value="1">R1 · Australian Grand Prix</option><option value="2">R2 · Chinese Grand Prix</option><option value="3">R3 · Japanese Grand Prix</option><option value="4">R4 · Miami Grand Prix</option><option value="5">R5 · Canadian Grand Prix</option><option value="6">R6 · Monaco Grand Prix</option><option value="7">R7 · Barcelona Grand Prix</option></select></div>
+    </div>
 
     <div class="ana-sec">Race Summary</div>
     <div class="ov-grid" id="ov-grid"></div>

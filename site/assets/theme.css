@@ -559,12 +559,14 @@ select:focus,input:focus{outline:none;border-color:var(--lime)}
   font-weight:600;font-size:12px;padding:6px 14px;border-radius:var(--r-sm);cursor:pointer}
 .seg button.active{background:var(--lime);color:#0c0c0c}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-/* Results: freeze each section's filter while scrolling that section */
-.res-sec .toolbar{position:sticky;top:56px;z-index:40;margin:0 0 14px;padding:11px 12px;
-  background:rgba(15,15,20,.96);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
-  border:1px solid var(--outline-2);border-radius:10px}
-/* matrix column header sticks just below the frozen filter, not under the nav */
-.res-sec .results-matrix{--mx-head-top:120px}
+/* Results: freeze each section's heading + filter together while scrolling it */
+.res-freeze{position:sticky;top:56px;z-index:40;margin:0 -24px 14px;padding:12px 24px;
+  background:rgba(15,15,20,.97);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--outline-2)}
+.res-freeze .sec-head{margin:0 0 10px}
+.res-freeze .toolbar{margin:0;justify-content:center}
+/* matrix column header sticks just below the frozen heading+filter, not under the nav */
+.res-sec .results-matrix{--mx-head-top:176px}
 
 /* ── countdown ──────────────────────────────────────────────────────────── */
 .countdown{display:flex;gap:10px}

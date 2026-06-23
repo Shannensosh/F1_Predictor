@@ -233,9 +233,11 @@ def build_results(d, ctx):
         “·S” marks a sprint round · hover for detail</span>
     </div>"""
     season = f"""
-    <div class="sec-head"><h2>Season Results</h2>
-      <div class="sec-sub">Every driver, every session · {n_done} of {len(sched)} rounds run</div></div>
-    <div class="toolbar"><div class="seg" id="catseg">{catseg}</div></div>
+    <div class="res-freeze">
+      <div class="sec-head"><h2>Season Results</h2>
+        <div class="sec-sub">Every driver, every session · {n_done} of {len(sched)} rounds run</div></div>
+      <div class="toolbar"><div class="seg" id="catseg">{catseg}</div></div>
+    </div>
     <div class="rmx-wrap" id="mxwrap"></div>
     {legend}"""
 
@@ -248,9 +250,11 @@ def build_results(d, ctx):
         <span><i style="background:#27D45F"></i>Gained</span><span><i style="background:#3671C6"></i>Maintained</span>
         <span><i style="background:#E1112A"></i>Lost</span></div>"""
     analysis = f"""
-    <div class="sec-head" style="margin-top:40px"><h2>Race Analysis</h2>
-      <div class="sec-sub">Race summary, on-track swings, pace and tyre strategy for any Grand Prix</div></div>
-    <div class="toolbar"><select id="axsel" onchange="renderAX()">{ropts}</select></div>
+    <div class="res-freeze">
+      <div class="sec-head"><h2>Race Analysis</h2>
+        <div class="sec-sub">Race summary, on-track swings, pace and tyre strategy for any Grand Prix</div></div>
+      <div class="toolbar"><select id="axsel" onchange="renderAX()">{ropts}</select></div>
+    </div>
 
     <div class="ana-sec">Race Summary</div>
     <div class="ov-grid" id="ov-grid"></div>
