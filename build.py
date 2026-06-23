@@ -916,16 +916,32 @@ def build_drivers(d):
                 return f"assets/drivers/{fn}"
         return None
 
-    # explicit 2026 F1.com headshots for drivers whose default headshot is stale
-    # (Hadjar → Red Bull team switch) or missing (Lindblad rookie placeholder) —
-    # current full-body cutouts pulled from their formula1.com/en/drivers pages.
-    HEADSHOT_2026 = {
-        "hadjar": "https://media.formula1.com/image/upload/c_fill,w_640,h_620,g_north/q_auto/v1740000001/common/f1/2026/redbullracing/isahad01/2026redbullracingisahad01right.webp",
-        "arvid_lindblad": "https://media.formula1.com/image/upload/c_fill,w_640,h_620,g_north/q_auto/v1740000001/common/f1/2026/racingbulls/arvlin01/2026racingbullsarvlin01right.webp",
+    # official 2026 headshots from formula1.com/en/drivers — current team/livery for
+    # every driver (the OpenF1/default headshots lag on team switches, e.g. Pérez still
+    # in Red Bull). F1 serves full-body cutouts; the Cloudinary g_north crop trims them
+    # to head-and-shoulders to match the existing format. driverId → "team/code".
+    F1_HEADSHOT = {
+        "antonelli": "mercedes/andant01", "russell": "mercedes/georus01",
+        "hamilton": "ferrari/lewham01", "leclerc": "ferrari/chalec01",
+        "norris": "mclaren/lannor01", "piastri": "mclaren/oscpia01",
+        "max_verstappen": "redbullracing/maxver01", "hadjar": "redbullracing/isahad01",
+        "gasly": "alpine/piegas01", "colapinto": "alpine/fracol01",
+        "alonso": "astonmartin/feralo01", "stroll": "astonmartin/lanstr01",
+        "hulkenberg": "audi/nichul01", "bortoleto": "audi/gabbor01",
+        "perez": "cadillac/serper01", "bottas": "cadillac/valbot01",
+        "ocon": "haas/estoco01", "bearman": "haas/olibea01",
+        "lawson": "racingbulls/lialaw01", "arvid_lindblad": "racingbulls/arvlin01",
+        "albon": "williams/alealb01", "sainz": "williams/carsai01",
     }
+    def f1_headshot(p):
+        t, c = p.split("/")
+        return ("https://media.formula1.com/image/upload/c_fill,w_640,h_620,g_north/"
+                f"q_auto/v1740000001/common/f1/2026/{t}/{c}/2026{t}{c}right.webp")
     def detail_photo(x):
         did = x["driverId"]
-        return HEADSHOT_2026.get(did) or photo(x.get("num")) or dphotos.get(did) or custom_img(x) or ""
+        if did in F1_HEADSHOT:
+            return f1_headshot(F1_HEADSHOT[did])
+        return photo(x.get("num")) or dphotos.get(did) or custom_img(x) or ""
 
     # 2026 per-round points (race + sprint), GPs and top-10s per driver
     def _fin(s):
