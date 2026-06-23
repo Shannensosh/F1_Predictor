@@ -291,7 +291,7 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
   border-right:1px solid var(--outline-2);text-align:center;white-space:nowrap}
 .results-matrix thead th{background:var(--lime);color:#fff;font-family:'Titillium Web';font-weight:700;
   font-size:11px;letter-spacing:.03em;padding:7px 5px;border-right-color:rgba(255,255,255,.18);
-  border-bottom:0;position:sticky;top:var(--mx-head-top,0);z-index:3}
+  border-bottom:0;position:relative;z-index:1}
 .results-matrix tbody tr:last-child td{border-bottom:0}
 .results-matrix tbody tr:hover td.rc-fin,.results-matrix tbody tr:hover td.rc-none{background:var(--l1)}
 /* race column headers: flag over round label */
@@ -565,8 +565,6 @@ select:focus,input:focus{outline:none;border-color:var(--lime)}
   border-bottom:1px solid var(--outline-2)}
 .res-freeze .sec-head{margin:0 0 10px}
 .res-freeze .toolbar{margin:0;justify-content:center}
-/* matrix column header sticks just below the frozen heading+filter, not under the nav */
-.res-sec .results-matrix{--mx-head-top:176px}
 
 /* ── countdown ──────────────────────────────────────────────────────────── */
 .countdown{display:flex;gap:10px}
