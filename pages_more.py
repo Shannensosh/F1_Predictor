@@ -300,7 +300,8 @@ def build_results(d, ctx):
     body = ('<div class="page-head"><div><h1>Results</h1>'
             '<p>Every driver and every session of the 2026 season — finishing positions and points, '
             'then a per-race breakdown: race summary, position changes, pace and tyre strategy.</p></div></div>'
-            + season + analysis)
+            '<section class="res-sec">' + season + '</section>'
+            '<section class="res-sec">' + analysis + '</section>')
 
     js = r"""
 var D=PAGE_DATA(), MX=D.mx, AX=D.ax, CAT='Race';
