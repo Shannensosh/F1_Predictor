@@ -99,6 +99,36 @@ LAYOUT = {
 _LAYOUT_FALLBACK = {"drs": 2, "straight_m": 1000, "s1": "Sector 1", "s2": "Sector 2", "s3": "Sector 3"}
 
 
+# ── Circuit reference facts (length / laps / first GP / lap record / character) ─
+# Sources: formula1.com circuit pages + formula-timer.com. "record" is the
+# official race lap record; "—" where none exists yet (new-for-2026 venue).
+REFERENCE = {
+    "albert_park":   {"length": 5.278, "laps": 58, "first_gp": 1996, "record": "1:19.813", "record_by": "C. Leclerc ’24", "char": "Fast, flowing parkland street circuit with long straights and quick kinks."},
+    "shanghai":      {"length": 5.451, "laps": 56, "first_gp": 2004, "record": "1:32.238", "record_by": "M. Schumacher ’04", "char": "Signature snail Turn 1–4 feeding a huge back straight into heavy braking."},
+    "suzuka":        {"length": 5.807, "laps": 53, "first_gp": 1987, "record": "1:30.983", "record_by": "L. Hamilton ’19", "char": "Classic figure-of-eight; the high-speed esses reward aero and commitment."},
+    "miami":         {"length": 5.412, "laps": 57, "first_gp": 2022, "record": "1:29.708", "record_by": "M. Verstappen ’23", "char": "Fast-flowing street layout with a twisty, technical middle sector."},
+    "villeneuve":    {"length": 4.361, "laps": 70, "first_gp": 1978, "record": "1:13.078", "record_by": "V. Bottas ’19", "char": "Stop-go semi-street circuit; big braking zones and the Wall of Champions."},
+    "monaco":        {"length": 3.337, "laps": 78, "first_gp": 1950, "record": "1:12.909", "record_by": "L. Hamilton ’21", "char": "The ultimate low-speed street test — barriers everywhere, almost no overtaking."},
+    "catalunya":     {"length": 4.657, "laps": 66, "first_gp": 1991, "record": "1:16.330", "record_by": "M. Verstappen ’23", "char": "Aero benchmark of long corners; final chicane removed for a flowing run-in."},
+    "red_bull_ring": {"length": 4.318, "laps": 71, "first_gp": 1970, "record": "1:05.619", "record_by": "C. Sainz ’20", "char": "Short, punchy power track with big elevation change and three DRS zones."},
+    "silverstone":   {"length": 5.891, "laps": 52, "first_gp": 1950, "record": "1:27.097", "record_by": "M. Verstappen ’20", "char": "High-speed temple — Maggotts–Becketts is one of F1's great corner sequences."},
+    "spa":           {"length": 7.004, "laps": 44, "first_gp": 1950, "record": "1:44.701", "record_by": "V. Bottas ’18", "char": "Longest lap on the calendar; Eau Rouge–Raidillon and the Kemmel straight."},
+    "hungaroring":   {"length": 4.381, "laps": 70, "first_gp": 1986, "record": "1:16.627", "record_by": "L. Hamilton ’20", "char": "Twisty, narrow ‘Monaco without walls’ — track position is everything."},
+    "zandvoort":     {"length": 4.259, "laps": 72, "first_gp": 1952, "record": "1:11.097", "record_by": "L. Hamilton ’21", "char": "Old-school dunes circuit with banked corners and minimal run-off."},
+    "monza":         {"length": 5.793, "laps": 53, "first_gp": 1950, "record": "1:21.046", "record_by": "R. Barrichello ’04", "char": "The Temple of Speed — lowest-downforce track, huge slipstream battles."},
+    "madring":       {"length": 5.474, "laps": 57, "first_gp": 2026, "record": "—", "record_by": "", "char": "All-new Madrid hybrid street/permanent layout making its debut in 2026."},
+    "baku":          {"length": 6.003, "laps": 51, "first_gp": 2016, "record": "1:43.009", "record_by": "C. Leclerc ’19", "char": "Tight castle section feeding a 2.2 km flat-out blast to Turn 1."},
+    "marina_bay":    {"length": 4.940, "laps": 62, "first_gp": 2008, "record": "1:34.486", "record_by": "D. Ricciardo ’24", "char": "Bumpy night street race; physically brutal, with a flowing revised final sector."},
+    "americas":      {"length": 5.513, "laps": 56, "first_gp": 2012, "record": "1:36.169", "record_by": "C. Leclerc ’19", "char": "COTA blends a steep Turn 1, Silverstone-style esses and a stadium section."},
+    "rodriguez":     {"length": 4.304, "laps": 71, "first_gp": 1963, "record": "1:17.774", "record_by": "V. Bottas ’21", "char": "High-altitude Mexico City lap; thin air saps aero and cooling, long main straight."},
+    "interlagos":    {"length": 4.309, "laps": 71, "first_gp": 1973, "record": "1:10.540", "record_by": "V. Bottas ’18", "char": "Short, undulating anticlockwise lap — the Senna S and the climb out of Juncão."},
+    "vegas":         {"length": 6.201, "laps": 50, "first_gp": 2023, "record": "1:35.490", "record_by": "O. Piastri ’23", "char": "Night street race down the Las Vegas Strip — very low downforce, long straights."},
+    "losail":        {"length": 5.419, "laps": 57, "first_gp": 2021, "record": "1:24.319", "record_by": "M. Verstappen ’21", "char": "Fast, flowing Qatari sweeps that punish tyres under floodlights."},
+    "yas_marina":    {"length": 5.281, "laps": 58, "first_gp": 2009, "record": "1:26.103", "record_by": "M. Verstappen ’21", "char": "Marina circuit reprofiled in 2021 for faster corners; twilight-to-night race."},
+}
+_REFERENCE_FALLBACK = {"length": None, "laps": None, "first_gp": None, "record": "—", "record_by": "", "char": ""}
+
+
 # ── Driver wet-weather skill (curated 0–100; higher = stronger in the rain) ──
 DRIVER_WET = {
     "max_verstappen": 96, "verstappen": 96, "hamilton": 93, "alonso": 91, "norris": 85,
@@ -116,6 +146,10 @@ def layout(circuit_id):
 
 def circuit(circuit_id):
     return CIRCUITS.get(circuit_id, _CIRCUIT_FALLBACK)
+
+
+def reference(circuit_id):
+    return REFERENCE.get(circuit_id, _REFERENCE_FALLBACK)
 
 
 def car(constructor_id):

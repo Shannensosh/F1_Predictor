@@ -710,7 +710,7 @@ def build_schedule(d):
             "round": r["round"], "name": r["name"], "country": r["country"],
             "date": r["date"], "lat": r["lat"], "lng": r["long"], "status": status,
         })
-        cid = r["circuitId"]; tr = C.circuit(cid); lay = C.layout(cid)
+        cid = r["circuitId"]; tr = C.circuit(cid); lay = C.layout(cid); ref = C.reference(cid)
         g = geo.get(cid, {})
         circ_detail[str(r["round"])] = {
             "round": r["round"], "name": r["name"], "circuitName": r["circuitName"],
@@ -722,6 +722,8 @@ def build_schedule(d):
             "s1": lay["s1"], "s2": lay["s2"], "s3": lay["s3"],
             "downforce": tr["downforce"], "power": tr["power"], "tyre": tr["tyre_stress"],
             "overtaking": tr["overtaking"], "type": tr["type"],
+            "length": ref["length"], "laps": ref["laps"], "first_gp": ref["first_gp"],
+            "record": ref["record"], "record_by": ref["record_by"], "char": ref["char"],
         }
     page_data = {"races": races_geo, "circuits": circ_detail, "next": next_round,
                  "recent": completed or next_round}
@@ -763,6 +765,17 @@ def build_schedule(d):
                 'title="Scroll right">›</button></div></div>'
                 '<div class="rc-row" id="rcRow">' + "".join(cards) + "</div></div>")
 
+    legend = """
+    <div class="map-legend">
+      <span class="flex ac gap8"><span class="teamdot" style="--c:#9b9ba8"></span>Completed</span>
+      <span class="flex ac gap8"><span class="teamdot" style="--c:#27D45F"></span>Next race</span>
+      <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Upcoming</span>
+      <span class="leg-sep"></span>
+      <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Zone 1</span>
+      <span class="flex ac gap8"><span class="teamdot" style="--c:#19C3B1"></span>Zone 2</span>
+      <span class="flex ac gap8"><span class="teamdot" style="--c:#F4D34A"></span>Zone 3</span>
+    </div>"""
+
     worldmap = f"""
     <div class="mapbox" id="circuitCard">
       <div class="map-stage">
@@ -772,25 +785,16 @@ def build_schedule(d):
           <button class="btn icon" onclick="stepRound(1)" title="Next round">›</button>
           <button class="btn" onclick="worldView()">World view</button>
         </div>
+        <div id="circInfo" class="circ-info"></div>
       </div>
       {rc_strip}
-    </div>
-    <div class="flex gap16 wrap-f" style="margin:10px 0 4px;font-size:12px">
-      <span class="flex ac gap8"><span class="teamdot" style="--c:#9b9ba8"></span>Completed</span>
-      <span class="flex ac gap8"><span class="teamdot" style="--c:#27D45F"></span>Next race</span>
-      <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Upcoming</span>
-      <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Zone 1
-        <span class="teamdot" style="--c:#19C3B1;margin-left:10px"></span>Zone 2
-        <span class="teamdot" style="--c:#F4D34A;margin-left:10px"></span>Zone 3</span>
-      <span class="muted">Opens on the most recent race in satellite view. Click a pin or race card to fly
-      to a circuit — the real track outline is split into three coloured zones on real terrain. Switch the
-      base layer (top-left) for the dark map.</span>
     </div>"""
 
     body = ('<div class="page-head"><div><h1>2026 Calendar</h1>'
             f'<p>{len(sched)} Grands Prix across the globe — every circuit positioned by real '
             'latitude / longitude on an interactive street &amp; satellite map.</p></div>'
             f'<div class="chip lime">{len(sched)} ROUNDS</div></div>'
+            + legend
             + worldmap)
     js = r"""
 var PD=PAGE_DATA(), RACES=PD.races, CIRC=PD.circuits;
@@ -833,19 +837,38 @@ function splitZones(coords){
   if(s[1].length)s[0].push(s[1][0]); if(s[2].length)s[1].push(s[2][0]);
   return s;
 }
-function circPopup(c){
-  return '<div class="cpop"><div class="caps">Round '+c.round+' · '+(c.date||'')+'</div>'
-    +'<div class="cpop-t">'+c.name+'</div>'
-    +'<div class="cpop-s">'+c.circuitName+' · '+(c.locality||'')+', '+c.country+'</div>'
-    +'<div class="cpop-chips"><span class="chip lime">'+c.turns+' turns</span>'
-    +'<span class="chip">'+c.drs+' DRS</span><span class="chip">~'+c.straight_m+'m</span>'
-    +'<span class="chip dim">'+cap(c.type)+'</span></div>'
-    +'<div class="caps" style="margin-top:9px">Track Zones</div>'
-    +['s1','s2','s3'].map(function(k,i){return '<div class="cpop-z"><span class="zdot" style="background:'+ZC[i]+'"></span><b>Z'+(i+1)+'</b> '+c[k]+'</div>';}).join('')
-    +'<div class="cpop-chips" style="margin-top:9px"><span class="chip">DF '+c.downforce+'</span>'
-    +'<span class="chip">PWR '+c.power+'</span><span class="chip">Tyre '+c.tyre+'</span>'
-    +'<span class="chip dim">Overtaking '+c.overtaking+'</span></div></div>';
+// Fixed, semi-transparent info panel pinned to the map's bottom-right. The map
+// always fits the circuit into the area NOT covered by the panel (FITPAD), so the
+// track is never blocked for any of the 22 races.
+var FITPAD={paddingTopLeft:[38,28], paddingBottomRight:[338,52]};
+function fmtRecord(c){
+  if(!c.record || c.record==='—') return '<span class="ci-na">—</span>';
+  return '<b>'+c.record+'</b>'+(c.record_by?' <span class="ci-by">'+c.record_by+'</span>':'');
 }
+function circInfoHTML(c){
+  function row(k,v){return '<div class="ci-k">'+k+'</div><div class="ci-v">'+v+'</div>';}
+  return '<button class="ci-x" onclick="hideInfo()" title="Hide">×</button>'
+    +'<div class="caps ci-rd">Round '+c.round+' · '+(c.date||'')+'</div>'
+    +'<div class="ci-t">'+c.name+'</div>'
+    +'<div class="ci-s">'+c.circuitName+' · '+(c.locality||'')+', '+c.country+'</div>'
+    +'<div class="ci-grid">'
+      +row('Type', cap(c.type))
+      +row('Length', c.length?(c.length+' km'):'—')
+      +row('Laps', c.laps||'—')
+      +row('First race', c.first_gp||'—')
+      +row('Lap record', fmtRecord(c))
+    +'</div>'
+    +(c.char?'<div class="ci-char">'+c.char+'</div>':'')
+    +'<div class="ci-chips"><span class="chip">'+c.turns+' turns</span>'
+      +'<span class="chip">'+c.drs+' DRS</span>'
+      +'<span class="chip">DF '+c.downforce+'</span>'
+      +'<span class="chip">PWR '+c.power+'</span>'
+      +'<span class="chip dim">Overtaking '+c.overtaking+'</span></div>';
+}
+function showInfo(c){var el=document.getElementById('circInfo'); if(!el)return;
+  el.innerHTML=circInfoHTML(c); el.classList.add('on');}
+function hideInfo(){var el=document.getElementById('circInfo'); if(el)el.classList.remove('on');}
+
 function showCircuit(rnd, fly){
   var c=CIRC[rnd]; if(!c) return;
   currentRound=+rnd;
@@ -861,16 +884,14 @@ function showCircuit(rnd, fly){
     L.circleMarker(coords[0],{radius:5,color:'#fff',weight:2,fillColor:'#27D45F',fillOpacity:1}).addTo(trackLayer);
   }
   if(fly!==false){
-    if(coords) MAP.flyToBounds(L.latLngBounds(coords).pad(0.55), {duration:1.5});
-    else MAP.flyTo([c.lat,c.lng], 11, {duration:1.5});
+    if(coords) MAP.flyToBounds(L.latLngBounds(coords), Object.assign({duration:1.2}, FITPAD));
+    else MAP.flyTo([c.lat,c.lng], 12, {duration:1.2});
   }
-  var at = coords ? coords[0] : [c.lat,c.lng];
-  L.popup({maxWidth:290,autoClose:false,closeOnClick:false,autoPan:false,className:'circ-popup'})
-    .setLatLng(at).setContent(circPopup(c)).openOn(MAP);
+  showInfo(c);
   if(fly){var cc=document.getElementById('circuitCard');if(cc)cc.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 
-function worldView(){ if(MAP) MAP.flyTo([28,12],2.4,{duration:1.4}); }
+function worldView(){ if(MAP) MAP.flyTo([28,12],2.4,{duration:1.4}); hideInfo(); }
 
 function stepRound(dir){
   var rounds=RACES.map(function(r){return r.round;}).sort(function(a,b){return a-b;});
@@ -889,7 +910,7 @@ function initMap(){
     {subdomains:'abcd', maxZoom:19, attribution:'© OpenStreetMap © CARTO'});
   var sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {maxZoom:19, attribution:'Imagery © Esri'});
-  MAP=L.map('lmap',{layers:[sat],zoomSnap:.2,worldCopyJump:true}).setView([28,12],2.4);
+  MAP=L.map('lmap',{layers:[sat],zoomSnap:0,worldCopyJump:true}).setView([28,12],2.4);
   L.control.layers({'Dark map':dark,'Satellite':sat},null,{position:'topleft'}).addTo(MAP);
   trackLayer=L.layerGroup().addTo(MAP);
   // season route (dashed) + race pins
@@ -906,8 +927,8 @@ function initMap(){
   var rr = PD.recent || PD.next || RACES[0].round;
   showCircuit(rr, false);
   var rc=CIRC[rr], rco=rc?outlineLatLng(rc):null;
-  if(rco) MAP.fitBounds(L.latLngBounds(rco).pad(0.6));
-  else if(rc) MAP.setView([rc.lat,rc.lng],11);
+  if(rco) MAP.fitBounds(L.latLngBounds(rco), FITPAD);
+  else if(rc) MAP.setView([rc.lat,rc.lng],12);
   focusCard(rr);
 }
 if(document.readyState!=='loading')initMap();else window.addEventListener('DOMContentLoaded',initMap);
