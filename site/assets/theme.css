@@ -676,6 +676,48 @@ select:focus,input:focus{outline:none;border-color:var(--lime)}
 .zdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto;
   box-shadow:0 0 0 1px rgba(0,0,0,.5)}
 
+/* ── schedule: all-rounds carousel (dashboard summary-tile aesthetic) ─────── */
+.rc-head{display:flex;align-items:center;justify-content:space-between;margin:22px 0 12px}
+.rc-head .sec-title{margin:0}
+.rc-nav{display:flex;gap:6px}
+.rc-row{display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;
+  padding:4px 2px 16px;scroll-snap-type:x mandatory;scrollbar-width:thin;
+  scrollbar-color:var(--outline) transparent}
+.rc-row::-webkit-scrollbar{height:8px}
+.rc-row::-webkit-scrollbar-track{background:transparent}
+.rc-row::-webkit-scrollbar-thumb{background:var(--outline-2);border-radius:8px}
+.rc-row::-webkit-scrollbar-thumb:hover{background:var(--outline)}
+.rc-card{position:relative;flex:0 0 234px;scroll-snap-align:start;cursor:pointer;
+  border:1px solid var(--outline-2);border-radius:var(--r-lg);overflow:hidden;
+  background:linear-gradient(180deg,#191921,#101016);
+  display:flex;flex-direction:column;padding:16px 16px 14px;gap:6px;transition:.18s}
+.rc-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--lime),transparent);opacity:.7;transition:.18s}
+.rc-card:hover{transform:translateY(-3px);border-color:var(--outline)}
+.rc-card:hover::before{opacity:1}
+.rc-card.next{border-color:rgba(225,6,0,.45)}
+.rc-card.on{border-color:var(--lime);box-shadow:0 10px 30px rgba(225,6,0,.18)}
+.rc-card.on::before{opacity:1;height:4px}
+.rc-top{display:flex;align-items:center;justify-content:space-between}
+.rc-trk{height:90px;display:flex;align-items:center;justify-content:center;margin:2px 0}
+.rc-track{width:100%;height:100%}
+.rc-track path{fill:none;stroke:#fff;stroke-width:5;stroke-linejoin:round;stroke-linecap:round;
+  opacity:.9;vector-effect:non-scaling-stroke}
+.rc-card.done .rc-track path{stroke:#cfcfd8;opacity:.55}
+.rc-card.next .rc-track path{stroke:var(--lime);opacity:1}
+.rc-notrk{height:90px}
+.rc-name{font-family:'Titillium Web';font-weight:700;font-size:16px;color:#fff;line-height:1.18;
+  display:flex;align-items:center;gap:8px}
+.rc-circ{font-size:12px;color:var(--muted);line-height:1.25}
+.rc-date{font-size:11.5px;color:var(--muted)}
+.rc-foot{margin-top:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rc-foot-k{font-family:'Titillium Web';font-weight:700;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+.rc-foot-v{font-family:'Titillium Web';font-weight:700;font-size:13.5px;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-foot-v.lime{color:var(--lime)} .rc-foot-v.muted{color:var(--muted);font-weight:600}
+
 /* ── sparkline / line chart ─────────────────────────────────────────────── */
 .linechart{width:100%;height:auto;display:block}
 .lc-axis{stroke:var(--outline);stroke-width:1}
