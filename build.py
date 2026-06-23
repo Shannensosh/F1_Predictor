@@ -373,26 +373,6 @@ def _hero_track_svg(d, cid):
             f'<path d="{dd}"/></svg>')
 
 
-def _mini_track_svg(g):
-    """Small white circuit silhouette used on the schedule race cards."""
-    pts = (g or {}).get("geo")
-    if pts and len(pts) >= 10:
-        xs = [p[1] for p in pts]; ys = [-p[0] for p in pts]
-    else:
-        ol = (g or {}).get("outline") or []
-        if len(ol) < 10:
-            return ""
-        xs = [p[0] for p in ol]; ys = [-p[1] for p in ol]
-    minx, maxx, miny, maxy = min(xs), max(xs), min(ys), max(ys)
-    sx, sy = (maxx - minx) or 1, (maxy - miny) or 1
-    W, H, pad = 200, 112, 12
-    sc = min((W - 2 * pad) / sx, (H - 2 * pad) / sy)
-    ox, oy = (W - sc * sx) / 2, (H - sc * sy) / 2
-    dd = "M" + "L".join(f"{ox+(x-minx)*sc:.1f},{oy+(y-miny)*sc:.1f}" for x, y in zip(xs, ys)) + "Z"
-    return (f'<svg class="rc-track" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet">'
-            f'<path d="{dd}"/></svg>')
-
-
 def build_splash(d):
     """Editorial intro landing — full-bleed Ferrari hero that swipes up into
     the dashboard on 'Start Racing'."""
@@ -745,14 +725,55 @@ def build_schedule(d):
         }
     page_data = {"races": races_geo, "circuits": circ_detail, "next": next_round,
                  "recent": completed or next_round}
+    # race cards — single horizontally-scrollable row, dashboard summary-tile
+    # aesthetic, embedded as a strip along the bottom of the map panel (no track art)
+    cards = []
+    for r in sorted(sched, key=lambda r: r["round"]):
+        rnd = r["round"]
+        win = win_by_round.get(rnd)
+        if rnd in win_by_round:
+            status, badge = "done", '<span class="chip green">Completed</span>'
+        elif rnd == next_round:
+            status, badge = "next", '<span class="chip lime">Next</span>'
+        else:
+            status, badge = "up", '<span class="chip dim">Upcoming</span>'
+        if win:
+            foot = (f'<span class="rc-foot-k">Winner</span>'
+                    f'<span class="rc-foot-v">🏆 {esc(win["given"][0])}. {esc(win["family"])}</span>')
+        elif status == "next":
+            foot = ('<span class="rc-foot-k">Status</span>'
+                    '<span class="rc-foot-v lime">Lights out next</span>')
+        else:
+            foot = ('<span class="rc-foot-k">Status</span>'
+                    '<span class="rc-foot-v muted">Upcoming</span>')
+        cards.append(f"""
+        <div class="rc-card {status}" id="r{rnd}" data-round="{rnd}"
+             onclick="showCircuit({rnd},true)">
+          <div class="rc-top"><span class="caps">Round {rnd}</span>{badge}</div>
+          <div class="rc-name">{flag(r['country'])} {esc(r['name'])}</div>
+          <div class="rc-circ">{esc(r['circuitName'])}</div>
+          <div class="rc-date mono">{esc(r['date'])} · {esc(r['locality'])}</div>
+          <div class="rc-foot">{foot}</div>
+        </div>""")
+
+    rc_strip = ('<div class="rc-embed">'
+                '<div class="rc-head"><span class="caps">All Rounds · 2026</span>'
+                '<div class="rc-nav"><button class="btn icon" onclick="scrollCards(-1)" '
+                'title="Scroll left">‹</button><button class="btn icon" onclick="scrollCards(1)" '
+                'title="Scroll right">›</button></div></div>'
+                '<div class="rc-row" id="rcRow">' + "".join(cards) + "</div></div>")
+
     worldmap = f"""
-    <div class="mapbox" style="position:relative" id="circuitCard">
-      <div id="lmap" style="width:100%;height:620px;border-radius:6px"></div>
-      <div style="position:absolute;left:14px;bottom:24px;z-index:900" class="flex gap8">
-        <button class="btn icon" onclick="stepRound(-1)" title="Previous round">‹</button>
-        <button class="btn icon" onclick="stepRound(1)" title="Next round">›</button>
-        <button class="btn" onclick="worldView()">World view</button>
+    <div class="mapbox" id="circuitCard">
+      <div class="map-stage">
+        <div id="lmap"></div>
+        <div class="map-ctrls">
+          <button class="btn icon" onclick="stepRound(-1)" title="Previous round">‹</button>
+          <button class="btn icon" onclick="stepRound(1)" title="Next round">›</button>
+          <button class="btn" onclick="worldView()">World view</button>
+        </div>
       </div>
+      {rc_strip}
     </div>
     <div class="flex gap16 wrap-f" style="margin:10px 0 4px;font-size:12px">
       <span class="flex ac gap8"><span class="teamdot" style="--c:#9b9ba8"></span>Completed</span>
@@ -766,48 +787,11 @@ def build_schedule(d):
       base layer (top-left) for the dark map.</span>
     </div>"""
 
-    # race cards — single horizontally-scrollable row, dashboard summary-tile aesthetic
-    cards = []
-    for r in sorted(sched, key=lambda r: r["round"]):
-        rnd = r["round"]
-        win = win_by_round.get(rnd)
-        if rnd in win_by_round:
-            status, badge = "done", '<span class="chip green">Completed</span>'
-        elif rnd == next_round:
-            status, badge = "next", '<span class="chip lime">Next</span>'
-        else:
-            status, badge = "up", '<span class="chip dim">Upcoming</span>'
-        trk = _mini_track_svg(geo.get(r["circuitId"], {})) or '<div class="rc-notrk"></div>'
-        if win:
-            foot = (f'<div class="rc-foot"><span class="rc-foot-k">Winner</span>'
-                    f'<span class="rc-foot-v">🏆 {esc(win["given"][0])}. {esc(win["family"])}</span></div>')
-        elif status == "next":
-            foot = ('<div class="rc-foot"><span class="rc-foot-k">Status</span>'
-                    '<span class="rc-foot-v lime">Lights out next</span></div>')
-        else:
-            foot = ('<div class="rc-foot"><span class="rc-foot-k">Status</span>'
-                    '<span class="rc-foot-v muted">Upcoming</span></div>')
-        cards.append(f"""
-        <div class="rc-card {status}" id="r{rnd}" data-round="{rnd}"
-             onclick="showCircuit({rnd},true)">
-          <div class="rc-top"><span class="caps">Round {rnd}</span>{badge}</div>
-          <div class="rc-trk">{trk}</div>
-          <div class="rc-name">{flag(r['country'])} {esc(r['name'])}</div>
-          <div class="rc-circ">{esc(r['circuitName'])}</div>
-          <div class="rc-date mono">{esc(r['date'])} · {esc(r['locality'])}</div>
-          {foot}
-        </div>""")
-
     body = ('<div class="page-head"><div><h1>2026 Calendar</h1>'
             f'<p>{len(sched)} Grands Prix across the globe — every circuit positioned by real '
             'latitude / longitude on an interactive street &amp; satellite map.</p></div>'
             f'<div class="chip lime">{len(sched)} ROUNDS</div></div>'
-            + worldmap
-            + '<div class="rc-head"><div class="sec-title">All Rounds</div>'
-              '<div class="rc-nav"><button class="btn icon" onclick="scrollCards(-1)" '
-              'title="Scroll left">‹</button><button class="btn icon" onclick="scrollCards(1)" '
-              'title="Scroll right">›</button></div></div>'
-            + '<div class="rc-row" id="rcRow">' + "".join(cards) + "</div>")
+            + worldmap)
     js = r"""
 var PD=PAGE_DATA(), RACES=PD.races, CIRC=PD.circuits;
 var COL={done:'#9b9ba8',next:'#27D45F',up:'#E10600'};
