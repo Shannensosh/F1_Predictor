@@ -723,13 +723,11 @@ def build_schedule(d):
             "downforce": tr["downforce"], "power": tr["power"], "tyre": tr["tyre_stress"],
             "overtaking": tr["overtaking"], "type": tr["type"],
         }
-    page_data = {"races": races_geo, "circuits": circ_detail, "next": next_round}
+    page_data = {"races": races_geo, "circuits": circ_detail, "next": next_round,
+                 "recent": completed or next_round}
     worldmap = f"""
     <div class="mapbox" style="position:relative" id="circuitCard">
       <div id="lmap" style="width:100%;height:620px;border-radius:6px"></div>
-      <div id="circuitInfo" class="card" style="position:absolute;top:14px;right:14px;width:330px;
-        max-height:580px;overflow-y:auto;background:rgba(21,21,30,.94);backdrop-filter:blur(10px);
-        border:1px solid var(--outline);z-index:900"></div>
       <div style="position:absolute;left:14px;bottom:24px;z-index:900" class="flex gap8">
         <button class="btn icon" onclick="stepRound(-1)" title="Previous round">‹</button>
         <button class="btn icon" onclick="stepRound(1)" title="Next round">›</button>
@@ -740,8 +738,12 @@ def build_schedule(d):
       <span class="flex ac gap8"><span class="teamdot" style="--c:#9b9ba8"></span>Completed</span>
       <span class="flex ac gap8"><span class="teamdot" style="--c:#27D45F"></span>Next race</span>
       <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Upcoming</span>
-      <span class="muted">Click a pin or race card to fly to the circuit — the real track outline is drawn
-      on real streets/terrain. Use the layer switcher (top-right of the map) for Satellite view.</span>
+      <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Zone 1
+        <span class="teamdot" style="--c:#19C3B1;margin-left:10px"></span>Zone 2
+        <span class="teamdot" style="--c:#F4D34A;margin-left:10px"></span>Zone 3</span>
+      <span class="muted">Opens on the most recent race in satellite view. Click a pin or race card to fly
+      to a circuit — the real track outline is split into three coloured zones on real terrain. Switch the
+      base layer (top-left) for the dark map.</span>
     </div>"""
 
     # race cards
@@ -803,44 +805,49 @@ function outlineLatLng(c){
   return coords;
 }
 
+function cap(s){return (s||'').charAt(0).toUpperCase()+(s||'').slice(1);}
+var ZC=['#E10600','#19C3B1','#F4D34A'];   // track zones Z1 / Z2 / Z3
+function splitZones(coords){
+  var n=coords.length; if(n<6) return [coords];
+  function dist(a,b){var dy=a[0]-b[0],dx=(a[1]-b[1])*Math.cos(a[0]*Math.PI/180);return Math.sqrt(dx*dx+dy*dy);}
+  var cum=[0]; for(var i=1;i<n;i++)cum.push(cum[i-1]+dist(coords[i-1],coords[i]));
+  var tot=cum[n-1]||1, b1=tot/3, b2=2*tot/3, s=[[],[],[]];
+  for(var i=0;i<n;i++){var z=cum[i]<=b1?0:(cum[i]<=b2?1:2); s[z].push(coords[i]);}
+  if(s[1].length)s[0].push(s[1][0]); if(s[2].length)s[1].push(s[2][0]);
+  return s;
+}
+function circPopup(c){
+  return '<div class="cpop"><div class="caps">Round '+c.round+' · '+(c.date||'')+'</div>'
+    +'<div class="cpop-t">'+c.name+'</div>'
+    +'<div class="cpop-s">'+c.circuitName+' · '+(c.locality||'')+', '+c.country+'</div>'
+    +'<div class="cpop-chips"><span class="chip lime">'+c.turns+' turns</span>'
+    +'<span class="chip">'+c.drs+' DRS</span><span class="chip">~'+c.straight_m+'m</span>'
+    +'<span class="chip dim">'+cap(c.type)+'</span></div>'
+    +'<div class="caps" style="margin-top:9px">Track Zones</div>'
+    +['s1','s2','s3'].map(function(k,i){return '<div class="cpop-z"><span class="zdot" style="background:'+ZC[i]+'"></span><b>Z'+(i+1)+'</b> '+c[k]+'</div>';}).join('')
+    +'<div class="cpop-chips" style="margin-top:9px"><span class="chip">DF '+c.downforce+'</span>'
+    +'<span class="chip">PWR '+c.power+'</span><span class="chip">Tyre '+c.tyre+'</span>'
+    +'<span class="chip dim">Overtaking '+c.overtaking+'</span></div></div>';
+}
 function showCircuit(rnd, fly){
   var c=CIRC[rnd]; if(!c) return;
   currentRound=+rnd;
+  if(!MAP) return;
   var coords=outlineLatLng(c);
-  if(MAP){
-    trackLayer.clearLayers();
-    if(coords){
-      L.polyline(coords,{color:'#15151E',weight:9,opacity:.85}).addTo(trackLayer);   // casing
-      L.polyline(coords,{color:'#E10600',weight:4,opacity:1}).addTo(trackLayer);     // track
-      L.circleMarker(coords[0],{radius:5,color:'#fff',weight:2,fillColor:'#27D45F',
-        fillOpacity:1}).addTo(trackLayer);                                            // start/finish
-    }
-    if(fly!==false){
-      if(coords) MAP.flyToBounds(L.latLngBounds(coords).pad(0.35), {duration:1.6});
-      else MAP.flyTo([c.lat,c.lng], 11, {duration:1.6});
-    }
+  trackLayer.clearLayers();
+  if(coords){
+    L.polyline(coords,{color:'#0c0c12',weight:11,opacity:.92}).addTo(trackLayer);          // casing
+    splitZones(coords).forEach(function(seg,i){ if(seg.length>1)
+      L.polyline(seg,{color:ZC[i],weight:5,opacity:1}).addTo(trackLayer); });               // Z1/Z2/Z3
+    L.circleMarker(coords[0],{radius:5,color:'#fff',weight:2,fillColor:'#27D45F',fillOpacity:1}).addTo(trackLayer);
   }
-  var mapNote=coords?''
-    :'<div class="note" style="margin:8px 0">New circuit — no telemetry yet to trace its shape.</div>';
-  document.getElementById('circuitInfo').innerHTML=mapNote+
-    '<div class="caps">Round '+c.round+' · '+(c.date||'')+'</div>'
-    +'<div style="font-weight:800;font-size:20px;margin:4px 0 2px">'+c.name+'</div>'
-    +'<div class="muted" style="font-size:12px">'+c.circuitName+' · '+(c.locality||'')+', '+c.country+'</div>'
-    +'<div class="flex gap8 wrap-f" style="margin:12px 0">'
-    +'<span class="chip lime">'+c.turns+' turns</span>'
-    +'<span class="chip">'+c.drs+' DRS zone'+(c.drs>1?'s':'')+'</span>'
-    +'<span class="chip">Longest straight ~'+c.straight_m+' m</span>'
-    +'<span class="chip dim">'+c.type.charAt(0).toUpperCase()+c.type.slice(1)+'</span></div>'
-    +'<div class="caps" style="margin-bottom:6px">Sectors</div>'
-    +['s1','s2','s3'].map(function(s,i){return '<div style="display:grid;grid-template-columns:30px 1fr;gap:8px;margin:5px 0;font-size:12.5px">'
-        +'<span class="chip lime" style="justify-content:center">S'+(i+1)+'</span><span>'+c[s]+'</span></div>';}).join('')
-    +'<div class="divider"></div>'
-    +'<div class="flex gap8 wrap-f"><span class="chip">Downforce '+c.downforce+'</span>'
-    +'<span class="chip">Power '+c.power+'</span><span class="chip">Tyre stress '+c.tyre+'</span>'
-    +'<span class="chip dim">Overtaking '+c.overtaking+'</span></div>'
-    +((c.geo&&c.geo.length)?'<div class="muted" style="font-size:10px;margin-top:8px">Georeferenced track geometry (f1-circuits dataset) — exact position on the map.</div>'
-       :(c.source?'<div class="muted" style="font-size:10px;margin-top:8px">Track traced from real '+c.source+' GPS (approximate placement).</div>':''))
-    +'<button class="btn" style="margin-top:10px;width:100%" onclick="worldView()">↩ Back to world view</button>';
+  if(fly!==false){
+    if(coords) MAP.flyToBounds(L.latLngBounds(coords).pad(0.55), {duration:1.5});
+    else MAP.flyTo([c.lat,c.lng], 11, {duration:1.5});
+  }
+  var at = coords ? coords[0] : [c.lat,c.lng];
+  L.popup({maxWidth:290,autoClose:false,closeOnClick:false,autoPan:false,className:'circ-popup'})
+    .setLatLng(at).setContent(circPopup(c)).openOn(MAP);
   if(fly){var cc=document.getElementById('circuitCard');if(cc)cc.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 
@@ -856,14 +863,14 @@ function stepRound(dir){
 function initMap(){
   if(typeof L==='undefined'){
     document.getElementById('lmap').innerHTML='<div class="muted" style="padding:40px;text-align:center">Map needs an internet connection (tiles + Leaflet). Use the race cards below.</div>';
-    showCircuit(PD.next || RACES[0].round, false);
+    showCircuit(PD.recent || PD.next || RACES[0].round, false);
     return;
   }
   var dark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
     {subdomains:'abcd', maxZoom:19, attribution:'© OpenStreetMap © CARTO'});
   var sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {maxZoom:19, attribution:'Imagery © Esri'});
-  MAP=L.map('lmap',{layers:[dark],zoomSnap:.2,worldCopyJump:true}).setView([28,12],2.4);
+  MAP=L.map('lmap',{layers:[sat],zoomSnap:.2,worldCopyJump:true}).setView([28,12],2.4);
   L.control.layers({'Dark map':dark,'Satellite':sat},null,{position:'topleft'}).addTo(MAP);
   trackLayer=L.layerGroup().addTo(MAP);
   // season route (dashed) + race pins
@@ -876,7 +883,12 @@ function initMap(){
       .on('click',function(){showCircuit(r.round,true);})
       .addTo(MAP);
   });
-  showCircuit(PD.next || RACES[0].round, false);
+  // default view: most recent race, zoomed in (satellite)
+  var rr = PD.recent || PD.next || RACES[0].round;
+  showCircuit(rr, false);
+  var rc=CIRC[rr], rco=rc?outlineLatLng(rc):null;
+  if(rco) MAP.fitBounds(L.latLngBounds(rco).pad(0.6));
+  else if(rc) MAP.setView([rc.lat,rc.lng],11);
 }
 if(document.readyState!=='loading')initMap();else window.addEventListener('DOMContentLoaded',initMap);
 """

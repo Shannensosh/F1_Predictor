@@ -658,6 +658,24 @@ select:focus,input:focus{outline:none;border-color:var(--lime)}
 .race-pin:hover{r:6}
 .pin-lbl{font-family:'JetBrains Mono';font-size:8px;fill:var(--muted)}
 
+/* ── circuit popup (Leaflet) ────────────────────────────────────────────── */
+.circ-popup .leaflet-popup-content-wrapper{background:rgba(13,13,18,.96);color:var(--on);
+  border:1px solid var(--outline-2);border-radius:8px;box-shadow:0 12px 34px rgba(0,0,0,.6);
+  backdrop-filter:blur(6px)}
+.circ-popup .leaflet-popup-content{margin:11px 13px;line-height:1.35}
+.circ-popup .leaflet-popup-tip{background:rgba(13,13,18,.96);border:1px solid var(--outline-2)}
+.circ-popup a.leaflet-popup-close-button{color:var(--muted);padding:5px 7px 0 0}
+.circ-popup a.leaflet-popup-close-button:hover{color:var(--on)}
+.cpop{font-family:'Titillium Web';width:262px}
+.cpop .caps{color:var(--lime);margin:0 0 3px}
+.cpop-t{font-weight:700;font-size:16px;line-height:1.15;margin:0 0 2px}
+.cpop-s{font-size:11.5px;color:var(--muted);margin:0 0 8px}
+.cpop-chips{display:flex;flex-wrap:wrap;gap:5px}
+.cpop-z{font-size:11.5px;color:var(--on);display:flex;align-items:center;gap:6px;margin:4px 0}
+.cpop-z b{color:var(--muted);font-weight:700;min-width:18px}
+.zdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto;
+  box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+
 /* ── sparkline / line chart ─────────────────────────────────────────────── */
 .linechart{width:100%;height:auto;display:block}
 .lc-axis{stroke:var(--outline);stroke-width:1}
