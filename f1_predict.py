@@ -30,7 +30,11 @@ DATA = os.path.join(HERE, "data")
 
 # ── transparent model constants ──────────────────────────────────────────────
 # Base Power Rating weights (sum to 1.0). Applied to normalised 0..1 features.
-W_FORM, W_QUALI, W_REL, W_CAR = 0.38, 0.19, 0.14, 0.29
+# Tuned via f1_tune.py walk-forward backtest (31 races, 2025–26): qualifying is
+# the strongest single predictor (was underweighted); reliability adds the least
+# to finishing-order rank (it belongs in the DNF draw, not the pace rating) so its
+# rating weight was cut. See f1_tune.py for the ablation + weight search.
+W_FORM, W_QUALI, W_REL, W_CAR = 0.34, 0.30, 0.08, 0.28
 SEASON_WEIGHT = {"2024": 0.25, "2025": 0.55, "2026": 1.00}   # recency emphasis
 RECENCY_HALFLIFE = 6.0     # within-season: races' weight halves every N races back
 # Per-race multipliers applied on top of the base rating (each ~±0.12):

@@ -890,24 +890,53 @@ def build_prediction(d, ctx):
 
     # factor breakdown (expandable per driver)
     def fitfmt(v): return ("+" if v >= 0 else "") + f"{v*100:.1f}"
-    # ── factor catalogue (self-documenting, from the model metadata) ────────
+    # ── factor catalogue: dashboard summary-tile style (icon · figure · name) ──
     src_cls = {"real": "green", "curated": "amber", "mixed": "lime", "model": "dim"}
     src_txt = {"real": "REAL DATA", "curated": "CURATED EST.", "mixed": "MIXED", "model": "MODEL"}
-    kind_txt = {"base": "Base rating", "multiplier": "Per-race ×", "sim": "Simulation"}
-    cat_cards = "".join(
-        f"""<div class="card">
-          <div class="flex jb ac" style="margin-bottom:6px">
-            <span style="font-family:'Titillium Web';font-weight:700;font-size:14px">{esc(fa['label'])}</span>
+    kind_txt = {"base": "Base factor", "multiplier": "Per-race ×", "sim": "Simulation"}
+    _svg = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '
+            'stroke-linecap="round" stroke-linejoin="round">{}</svg>')
+    FAC_ICON = {
+        "form":         '<path d="M3 16l5-5 4 4 8-9"/><path d="M21 6v5h-5"/>',
+        "quali":        '<circle cx="12" cy="13" r="7"/><path d="M12 13V9M10 2h4M18 6l1.5-1.5"/>',
+        "reliability":  '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
+        "car":          '<path d="M3 13l2-5h14l2 5M2 13h20v4H2z"/><circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/>',
+        "circuit_fit":  '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>',
+        "track_factor": '<path d="M12 21s7-6 7-11a7 7 0 1 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+        "weather":      '<path d="M7 16a4 4 0 1 1 1-7.9A5 5 0 0 1 18 9a3.5 3.5 0 0 1 0 7H7z"/><path d="M9 19l-1 2M13 19l-1 2M17 19l-1 2"/>',
+        "momentum":     '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
+        "car_dev":      '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+        "news":         '<path d="M4 5h13v14H4z"/><path d="M17 8h3v9a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/>',
+        "season_shock": '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="currentColor"/><circle cx="15" cy="9" r="1.1" fill="currentColor"/><circle cx="9" cy="15" r="1.1" fill="currentColor"/><circle cx="15" cy="15" r="1.1" fill="currentColor"/>',
+    }
+    _tfmax = m.get("track_factor_max", 0.12) * 100
+    FAC_FIG = {  # (figure, unit) shown big — weight % for base, ± range for multipliers
+        "circuit_fit":  (f"±{12:.0f}", "%"), "track_factor": (f"±{_tfmax:.0f}", "%"),
+        "weather":      ("WET", ""),
+        "momentum":     (f"±{m.get('momentum_max',0.08)*100:.0f}", "%"),
+        "car_dev":      (f"+{m.get('dev_gain',0.05)*100:.0f}", "%"),
+        "news":         (f"±{m.get('news_gain',0.04)*100:.0f}", "%"),
+        "season_shock": (f"{m['n_sims']//1000}", "k sims"),
+    }
+    def fac_fig(fa):
+        if fa["kind"] == "base":
+            return (f"{fa['weight']*100:.0f}", "%")
+        return FAC_FIG.get(fa["key"], ("×", ""))
+    cat_cards = ""
+    for fa in m["factors"]:
+        fig, unit = fac_fig(fa)
+        cat_cards += f"""
+        <div class="stat-tile fac-tile">
+          <div class="st-icon">{_svg.format(FAC_ICON.get(fa['key'], ''))}</div>
+          <div class="st-fig">{fig}<span class="st-unit">{esc(unit)}</span></div>
+          <div class="st-label">{esc(kind_txt.get(fa['kind'], fa['kind']))}</div>
+          <div class="st-name">{esc(fa['label'])}</div>
+          <div class="fac-foot">
             <span class="chip {src_cls.get(fa['source'],'dim')}">{src_txt.get(fa['source'],fa['source'].upper())}</span>
-          </div>
-          <div class="flex gap8 wrap-f" style="margin-bottom:8px">
-            <span class="chip dim">{esc(kind_txt.get(fa['kind'],fa['kind']))}</span>
-            {f'<span class="chip lime">weight {fa["weight"]*100:.0f}%</span>' if fa.get('weight') else ''}
             <span class="chip dim">{esc(fa['data'])}</span>
           </div>
-          <div class="muted" style="font-size:12px;line-height:1.45">{esc(fa['desc'])}</div>
+          <div class="st-desc">{esc(fa['desc'])}</div>
         </div>"""
-        for fa in m["factors"])
     catalogue = (f'<div class="sec-title">Factors used by the model</div>'
                  f'<p class="muted" style="font-size:12.5px;margin:-4px 0 12px">'
                  f'Four <b>base factors</b> form each driver\'s Power Rating (weights sum to 100%). '

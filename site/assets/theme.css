@@ -151,6 +151,18 @@ nav.tabs a.active{color:#fff;background:var(--lime);font-weight:700}
   grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory}
   .lead-grid>*{scroll-snap-align:start}}
 
+/* factor catalogue tiles — same trophy-cabinet look as the dashboard summary,
+   with a left-aligned description block beneath */
+.fac-tile{padding:24px 18px 18px}
+.fac-tile .st-icon{width:40px;height:40px}
+.fac-tile .st-fig{font-size:34px}
+.fac-tile .st-label{letter-spacing:.12em}
+.fac-tile .st-name{font-size:16px;margin-top:6px;padding-top:0;border-top:0}
+.fac-foot{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:2px}
+.st-desc{margin-top:12px;padding-top:12px;width:100%;text-align:left;
+  border-top:1px solid rgba(255,255,255,.08);
+  font-size:12px;color:var(--muted);line-height:1.45}
+
 /* ── FINALISTS-style championship cards (image behind, dark blur) ────────── */
 .fin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .fin-card{position:relative;height:176px;border-radius:var(--r-lg);overflow:hidden;
