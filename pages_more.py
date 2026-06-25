@@ -937,15 +937,21 @@ def build_prediction(d, ctx):
           </div>
           <div class="st-desc">{esc(fa['desc'])}</div>
         </div>"""
-    catalogue = (f'<div class="sec-title">Factors used by the model</div>'
-                 f'<p class="muted" style="font-size:12.5px;margin:-4px 0 12px">'
-                 f'Four <b>base factors</b> form each driver\'s Power Rating (weights sum to 100%). '
-                 f'A set of <b>multipliers</b> then adjust it — for the circuit (fit, track history, weather), '
-                 f'for <b>recent form (momentum)</b>, for <b>car development</b> and <b>news/penalties</b> '
-                 f'scraped from the live headline feed ({m.get("news_headlines", 0)} scanned) — and a '
-                 f'simulation shock adds season-long uncertainty. Source badges show real API data vs '
-                 f'curated estimates.</p>'
-                 f'<div class="grid g3">{cat_cards}</div>')
+    catalogue = (
+        '<div class="rc-head" style="margin-top:22px">'
+        '<div class="sec-title" style="margin:0">Factors used by the model</div>'
+        '<div class="rc-nav">'
+        "<button class=\"btn icon\" onclick=\"document.getElementById('facRow').scrollBy({left:-300,behavior:'smooth'})\" title=\"Scroll left\">‹</button>"
+        "<button class=\"btn icon\" onclick=\"document.getElementById('facRow').scrollBy({left:300,behavior:'smooth'})\" title=\"Scroll right\">›</button>"
+        '</div></div>'
+        f'<p class="muted" style="font-size:12.5px;margin:-4px 0 10px">'
+        f'Four <b>base factors</b> form each driver\'s Power Rating (weights sum to 100%). '
+        f'A set of <b>multipliers</b> then adjust it — for the circuit (fit, track history, weather), '
+        f'for <b>recent form (momentum)</b>, for <b>car development</b> and <b>news/penalties</b> '
+        f'scraped from the live headline feed ({m.get("news_headlines", 0)} scanned) — and a '
+        f'simulation shock adds season-long uncertainty. Scroll for all 11 · source badges show real '
+        f'API data vs curated estimates.</p>'
+        f'<div class="rc-row" id="facRow">{cat_cards}</div>')
 
     # ── per-driver breakdown ─────────────────────────────────────────────────
     wts = m["weights"]

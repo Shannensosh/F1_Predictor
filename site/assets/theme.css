@@ -152,16 +152,18 @@ nav.tabs a.active{color:#fff;background:var(--lime);font-weight:700}
   .lead-grid>*{scroll-snap-align:start}}
 
 /* factor catalogue tiles — same trophy-cabinet look as the dashboard summary,
-   with a left-aligned description block beneath */
-.fac-tile{padding:24px 18px 18px}
-.fac-tile .st-icon{width:40px;height:40px}
-.fac-tile .st-fig{font-size:34px}
-.fac-tile .st-label{letter-spacing:.12em}
-.fac-tile .st-name{font-size:16px;margin-top:6px;padding-top:0;border-top:0}
-.fac-foot{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:2px}
-.st-desc{margin-top:12px;padding-top:12px;width:100%;text-align:left;
-  border-top:1px solid rgba(255,255,255,.08);
-  font-size:12px;color:var(--muted);line-height:1.45}
+   but narrow & compact, laid out in a single horizontal scroll row (#facRow) */
+.fac-tile{flex:0 0 196px;scroll-snap-align:start;padding:16px 14px 13px;gap:4px;border-radius:var(--r-md)}
+.fac-tile .st-icon{width:32px;height:32px;margin-bottom:2px}
+.fac-tile .st-fig{font-size:27px;gap:4px}
+.fac-tile .st-unit{font-size:11px}
+.fac-tile .st-label{font-size:9.5px;letter-spacing:.1em}
+.fac-tile .st-name{font-size:13.5px;margin-top:4px;padding-top:0;border-top:0;line-height:1.15}
+.fac-foot{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-top:3px}
+.fac-foot .chip{font-size:8.5px;padding:2px 6px}
+.st-desc{margin-top:9px;padding-top:9px;width:100%;text-align:left;
+  border-top:1px solid rgba(255,255,255,.08);font-size:10.5px;color:var(--muted);line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 
 /* ── FINALISTS-style championship cards (image behind, dark blur) ────────── */
 .fin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
