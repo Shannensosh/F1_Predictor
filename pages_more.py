@@ -846,54 +846,8 @@ def build_prediction(d, ctx):
         <div class="mono" style="font-size:26px">{drivers[0]['win_pct']:.0f}%</div></div>
     </div>"""
 
-    # ── weather forecast + wet-pace factor ──────────────────────────────────
-    fc = p.get("forecast"); rw = p.get("rain_weight", 0) or 0
-    _wmo = {0: ("Clear", "☀️"), 1: ("Mainly clear", "🌤️"), 2: ("Partly cloudy", "⛅"),
-            3: ("Overcast", "☁️"), 45: ("Fog", "🌫️"), 48: ("Fog", "🌫️"),
-            51: ("Light drizzle", "🌦️"), 53: ("Drizzle", "🌦️"), 55: ("Drizzle", "🌧️"),
-            61: ("Light rain", "🌦️"), 63: ("Rain", "🌧️"), 65: ("Heavy rain", "🌧️"),
-            80: ("Rain showers", "🌦️"), 81: ("Showers", "🌧️"), 82: ("Heavy showers", "⛈️"),
-            95: ("Thunderstorm", "⛈️"), 96: ("Thunderstorm", "⛈️"), 99: ("Thunderstorm", "⛈️")}
-    if fc and fc.get("in_range"):
-        cond, icon = _wmo.get(fc.get("wcode"), ("—", "🌡️"))
-        rainy = rw > 0
-        wet_top = sorted(drivers, key=lambda x: -x["wet_skill"])[:6]
-        def _wadj(x):
-            if not rainy:
-                return f'{x["wet_skill"]}'
-            pct = (x["wet_factor"] - 1) * 100
-            return f'{x["wet_skill"]} · {"+" if pct >= 0 else ""}{pct:.1f}%'
-        wet_rows = "".join(
-            f'<div class="barrow"><span class="blabel">{esc(x["name"].split()[-1])}</span>'
-            f'<span class="bar"><i style="width:{x["wet_skill"]:.0f}%;background:{team_color(x["constructorId"])}"></i></span>'
-            f'<span class="bval">{_wadj(x)}</span></div>'
-            for x in wet_top)
-        status_chip = (f'<span class="chip amber">🌧️ Wet adjustment ACTIVE · rain weight {rw:.2f}</span>'
-                       if rainy else '<span class="chip green">Dry forecast — no wet adjustment</span>')
-        weather_panel = f"""
-        <div class="grid g2" style="margin-top:14px;align-items:start">
-          <div class="card"><div class="sec-title" style="margin-top:0">Race-Day Forecast · {esc(p['next_race']['name'].replace(' Grand Prix',''))}</div>
-            <div class="flex gap16 ac wrap-f">
-              <div style="font-size:40px">{icon}</div>
-              <div><div style="font-family:'Titillium Web';font-weight:700;font-size:18px">{esc(cond)}</div>
-                <div class="muted mono" style="font-size:12px">{esc(fc.get('date',''))} · forecast (Open-Meteo)</div></div>
-            </div>
-            <div class="flex gap8 wrap-f" style="margin-top:12px">
-              <span class="chip">🌡️ {fc.get('tmax','–')}° / {fc.get('tmin','–')}°</span>
-              <span class="chip {'amber' if (fc.get('precip_prob') or 0)>=40 else 'dim'}">🌧️ {fc.get('precip_prob','–')}% rain</span>
-              <span class="chip dim">💨 {fc.get('wind','–')} km/h</span>
-            </div>
-            <div style="margin-top:12px">{status_chip}</div>
-            <div class="note" style="margin-top:10px">When rain is likely, a curated driver <b>wet-skill</b> swings the
-              next-race odds — strong wet drivers gain, weaker ones lose, scaled by the rain probability.</div>
-          </div>
-          <div class="card"><div class="sec-title" style="margin-top:0">Wet-Weather Pace (curated){' · live adjustment' if rainy else ''}</div>
-            {wet_rows}</div>
-        </div>"""
-    else:
-        weather_panel = (f'<div class="note" style="margin-top:14px">🌡️ Race-day forecast for '
-                         f'{esc(p["next_race"]["name"])} isn\'t available yet (more than ~16 days out). '
-                         f'Wet-pace adjustment will activate automatically once the forecast is in range.</div>')
+    # (Race-day forecast + wet-weather pace panel removed per request — the wet
+    # factor still feeds the model and is documented in the factor catalogue.)
 
     # next-race win% + podium bars
     wmax = drivers[0]["win_pct"] or 1
@@ -1050,7 +1004,7 @@ def build_prediction(d, ctx):
     body = ('<div class="page-head"><div><h1>Prediction Engine</h1>'
             '<p>Win probability for the next Grand Prix and the 2026 title race — transparent, '
             'recency-weighted, and Monte-Carlo simulated.</p></div></div>'
-            + header + weather_panel + grids
+            + header + grids
             + catalogue
             + '<div class="sec-title">Driver Factor Breakdown</div>'
             + '<p class="muted" style="font-size:12.5px;margin:-4px 0 12px">Click a driver to see how '
