@@ -573,7 +573,7 @@ def build_driver_index(dstand_2026):
 # ─────────────────────────────────────────────────────────────────────────────
 # Latest F1 news (RSS), weather forecast (Open-Meteo), per-circuit outlines
 # ─────────────────────────────────────────────────────────────────────────────
-def fetch_news(limit=10):
+def fetch_news(limit=20):
     import re
     import html as _html
     try:

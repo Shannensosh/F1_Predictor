@@ -41,6 +41,13 @@ WET_GAIN = 0.55            # how strongly wet-weather skill swings next-race odd
 WET_PIVOT = 75             # neutral wet-skill level (above gains in rain, below loses)
 BETA = 7.2                 # decisiveness of the race simulator (higher = favourite stronger)
 DNF_SCALE = 1.00           # multiplies (1−reliability) into a per-race retirement chance
+# ── added factors ────────────────────────────────────────────────────────────
+MOMENTUM_RACES = 3         # short-term form window (last N completed 2026 races)
+MOMENTUM_MAX = 0.08        # max ± next-race nudge from a hot / cold streak
+DEV_GAIN = 0.05            # max season-long car boost from news-reported upgrades
+DEV_CAP = 4                # upgrade mentions that saturate the dev boost
+NEWS_GAIN = 0.04           # max ± next-race nudge from driver news sentiment (buzz)
+PENALTY_MULT = 0.82        # next-race strength multiplier if a grid/engine penalty is in the news
 
 
 def track_factor(track_avg, circuit_id):
@@ -152,6 +159,51 @@ def build_features():
         feats[did] = {"ppr": ppr, "rel": rel, "gpos": gpos,
                       "quali": quali_score, "car": car_idx, "track_avg": track_avg}
 
+    # ── recency / momentum: last-N 2026 races vs the season baseline ─────────
+    races26 = results.get("2026", [])
+    n26 = max(1, len(races26))
+    recent = races26[-MOMENTUM_RACES:]
+    rec_n = max(1, len(recent))
+    season_pts26 = {d: 0.0 for d in driver_ids}
+    recent_pts = {d: 0.0 for d in driver_ids}
+    for race in races26:
+        for res in race["results"]:
+            if res["driverId"] in season_pts26:
+                season_pts26[res["driverId"]] += res["points"]
+    for race in recent:
+        for res in race["results"]:
+            if res["driverId"] in recent_pts:
+                recent_pts[res["driverId"]] += res["points"]
+    for did in driver_ids:
+        r_ppr = recent_pts[did] / rec_n          # points/race over the last N rounds
+        s_ppr = season_pts26[did] / n26          # season points/race
+        delta = r_ppr - s_ppr
+        mom = 1.0 + max(-MOMENTUM_MAX, min(MOMENTUM_MAX, delta / 100.0))
+        feats[did]["recent_ppr"] = round(r_ppr, 2)
+        feats[did]["season_ppr"] = round(s_ppr, 2)
+        feats[did]["momentum"] = round(mom, 4)
+
+    # ── news-derived signals (car upgrades, sentiment, penalties) ────────────
+    try:
+        import f1_news
+        news = _load("news.json")
+        sig = f1_news.news_signals(news, grid)
+    except Exception:  # noqa: BLE001 — news is best-effort
+        sig = {"dev": {}, "buzz": {}, "penalty": {}, "mentions": {}, "headlines": 0}
+    dev = sig.get("dev", {})
+    dev_factor = {}                              # season-long car-development boost
+    for cid in set(cons_of.values()):
+        n = min(dev.get(cid, 0), DEV_CAP)
+        dev_factor[cid] = round(1.0 + DEV_GAIN * (n / DEV_CAP), 4)
+    for did in driver_ids:
+        buzz = sig.get("buzz", {}).get(did, 0.0)
+        feats[did]["news_factor"] = round(1.0 + NEWS_GAIN * np.tanh(buzz / 2.0), 4)
+        feats[did]["news_buzz"] = buzz
+        feats[did]["news_mentions"] = sig.get("mentions", {}).get(did, 0)
+        feats[did]["penalty"] = bool(sig.get("penalty", {}).get(did, False))
+        feats[did]["dev_factor"] = dev_factor[cons_of[did]]
+        feats[did]["upgrades"] = dev.get(cons_of[did], 0)
+
     # normalise form & quali to 0..1 across the grid
     pmax = max((f["ppr"] for f in feats.values()), default=1) or 1
     for did, f in feats.items():
@@ -174,6 +226,8 @@ def build_features():
         "current_points": {d["driverId"]: d["points"] for d in grid},
         "cons_points": {c["constructorId"]: c["points"] for c in standings["constructors"]},
         "cons_name": {c["constructorId"]: c["name"] for c in standings["constructors"]},
+        "dev_factor": dev_factor,
+        "news_headlines": sig.get("headlines", 0),
     }
     return feats, meta
 
@@ -193,29 +247,31 @@ def _points_vector(order, table):
     return pts
 
 
-def simulate(feats, meta, n_sims=N_SIMS, seed=20260101, wet_mult=None):
+def simulate(feats, meta, n_sims=N_SIMS, seed=20260101, next_mult=None):
     rng = np.random.default_rng(seed)
     dids = meta["driver_ids"]
     D = len(dids)
     ratings = np.array([feats[d]["rating"] for d in dids])
     rel = np.array([feats[d]["rel"] for d in dids])
     cons = [meta["cons_of"][d] for d in dids]
+    # season-long car development boost (news-reported upgrades) — every race
+    dev = np.array([feats[d].get("dev_factor", 1.0) for d in dids])
 
     track_avgs = [feats[d].get("track_avg", {}) for d in dids]
 
-    # per-remaining-race log-strength (rating × circuit fit × track history)
+    # per-remaining-race log-strength (rating × circuit fit × track history × dev)
     races = meta["remaining"]
     strength_by_race, is_sprint = [], []
     for r in races:
         cid = r["circuitId"]
         fit = np.array([C.circuit_fit(cons[i], cid) for i in range(D)])
         trk = np.array([track_factor(track_avgs[i], cid) for i in range(D)])
-        strength_by_race.append(ratings * fit * trk * BETA)
+        strength_by_race.append(ratings * fit * trk * dev * BETA)
         is_sprint.append(bool(r.get("isSprint")))
 
-    # weather only forecast for the NEXT race → wet multiplier on race 0 only
-    if wet_mult is not None and strength_by_race:
-        strength_by_race[0] = strength_by_race[0] * np.asarray(wet_mult)
+    # next-race-only multiplier (weather × momentum × news × penalty) on race 0
+    if next_mult is not None and strength_by_race:
+        strength_by_race[0] = strength_by_race[0] * np.asarray(next_mult)
 
     # accumulators
     season_pts = np.tile(np.array([meta["current_points"][d] for d in dids], float),
@@ -298,10 +354,17 @@ def run(n_sims=N_SIMS, verbose=False):
         ws = C.wet_skill(did)
         wf = 1.0 + (ws - WET_PIVOT) / 100.0 * WET_GAIN * rain_weight
         wet_factor[did] = round(wf, 4)
-    if rain_weight > 0:
-        wet_mult = [wet_factor[d] for d in meta["driver_ids"]]
 
-    sim = simulate(feats, meta, n_sims=n_sims, wet_mult=wet_mult)
+    # ── combined next-race multiplier: weather × momentum × news × penalty ───
+    next_factor = {}
+    for did in meta["driver_ids"]:
+        f = feats[did]
+        pen = PENALTY_MULT if f.get("penalty") else 1.0
+        next_factor[did] = round(wet_factor[did] * f.get("momentum", 1.0)
+                                 * f.get("news_factor", 1.0) * pen, 4)
+    next_mult = [next_factor[d] for d in meta["driver_ids"]]
+
+    sim = simulate(feats, meta, n_sims=n_sims, next_mult=next_mult)
 
     drivers = []
     for did in meta["driver_ids"]:
@@ -332,11 +395,22 @@ def run(n_sims=N_SIMS, verbose=False):
             "fit_parts": C.fit_breakdown(cid, nrc),
             "track_factor": trk_f,
             "track_avg_finish": round(trk_avg, 1) if trk_avg is not None else None,
-            "race_strength": round(base * fit * trk_f, 4),
+            "race_strength": round(base * fit * trk_f * f.get("dev_factor", 1.0), 4),
             "balance": C.balance_label(cid),
             "weight_kg": C.car(cid)["weight_kg"],
             "wet_skill": C.wet_skill(did),
             "wet_factor": wet_factor[did],
+            # ── added factors ──
+            "momentum": f.get("momentum", 1.0),
+            "recent_ppr": f.get("recent_ppr", 0.0),
+            "season_ppr": f.get("season_ppr", 0.0),
+            "dev_factor": f.get("dev_factor", 1.0),
+            "upgrades": f.get("upgrades", 0),
+            "news_factor": f.get("news_factor", 1.0),
+            "news_buzz": f.get("news_buzz", 0.0),
+            "news_mentions": f.get("news_mentions", 0),
+            "penalty": f.get("penalty", False),
+            "next_factor": next_factor[did],
             "current_points": meta["current_points"][did],
             "win_pct": round(sim["win_pct"][did], 2),
             "podium_pct": round(sim["podium"][did], 2),
@@ -400,11 +474,29 @@ def run(n_sims=N_SIMS, verbose=False):
                  "desc": "If rain is forecast for the next race, a curated driver wet-weather skill "
                          "swings the odds — strong wet drivers (e.g. Verstappen, Hamilton, Alonso) gain, "
                          "weaker ones lose. Scales with the rain probability; no effect on a dry forecast."},
+                {"key": "momentum", "label": "Recent form (momentum)", "kind": "multiplier", "weight": None,
+                 "source": "real", "data": f"Last {MOMENTUM_RACES} races vs 2026 average",
+                 "desc": f"Next-race ×{1-MOMENTUM_MAX:.2f}–{1+MOMENTUM_MAX:.2f}. Compares a driver's points/race "
+                         f"over the last {MOMENTUM_RACES} rounds to their season average — a hot streak boosts, "
+                         "a slump penalises. Captures short-term form on top of the recency-weighted Form factor."},
+                {"key": "car_dev", "label": "Car development (news)", "kind": "multiplier", "weight": None,
+                 "source": "mixed", "data": "Upgrade mentions in the live news feed",
+                 "desc": f"Season-long ×1.00–{1+DEV_GAIN:.2f} per team. Counts how often each team's car upgrades "
+                         "(new floor/wing/package) appear in the headlines as a proxy for development rate. "
+                         "Persistent — applies to every remaining race."},
+                {"key": "news", "label": "News & penalties", "kind": "multiplier", "weight": None,
+                 "source": "mixed", "data": "Sentiment + penalties scraped from headlines",
+                 "desc": f"Next-race ×{1-NEWS_GAIN:.2f}–{1+NEWS_GAIN:.2f} from driver news sentiment, plus a "
+                         f"×{PENALTY_MULT:.2f} hit if a grid/engine penalty is reported. Keyword-based and "
+                         "deliberately small — news is noisy."},
                 {"key": "season_shock", "label": "Form uncertainty", "kind": "sim", "weight": None,
                  "source": "model", "data": "Per-simulation random shock",
                  "desc": "Each of the 20k simulated seasons draws a constant per-driver strength shock "
                          "(upgrades, slumps) so the points leader isn't a near-certainty."},
             ],
+            "momentum_max": MOMENTUM_MAX, "dev_gain": DEV_GAIN, "news_gain": NEWS_GAIN,
+            "penalty_mult": PENALTY_MULT, "momentum_races": MOMENTUM_RACES,
+            "news_headlines": meta.get("news_headlines", 0),
         },
     }
     if verbose:

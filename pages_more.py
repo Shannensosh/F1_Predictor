@@ -957,13 +957,16 @@ def build_prediction(d, ctx):
     catalogue = (f'<div class="sec-title">Factors used by the model</div>'
                  f'<p class="muted" style="font-size:12.5px;margin:-4px 0 12px">'
                  f'Four <b>base factors</b> form each driver\'s Power Rating (weights sum to 100%). '
-                 f'Two <b>per-race multipliers</b> then adjust it for the specific circuit, and a '
+                 f'A set of <b>multipliers</b> then adjust it — for the circuit (fit, track history, weather), '
+                 f'for <b>recent form (momentum)</b>, for <b>car development</b> and <b>news/penalties</b> '
+                 f'scraped from the live headline feed ({m.get("news_headlines", 0)} scanned) — and a '
                  f'simulation shock adds season-long uncertainty. Source badges show real API data vs '
                  f'curated estimates.</p>'
                  f'<div class="grid g3">{cat_cards}</div>')
 
     # ── per-driver breakdown ─────────────────────────────────────────────────
     wts = m["weights"]
+    momraces = m.get("momentum_races", 3)
     nr_short = esc(nr["name"].replace(" Grand Prix", ""))
     details = []
     for x in drivers[:14]:
@@ -1000,9 +1003,19 @@ def build_prediction(d, ctx):
             </div>
             <div class="muted" style="font-size:11px;margin-top:8px">Circuit-fit parts — {parts_html}</div>
             <div class="divider"></div>
+            <div class="caps" style="margin-bottom:6px">Recent form · development · news</div>
+            <div class="flex gap8 wrap-f" style="font-size:12px">
+              <span class="chip {'green' if x['momentum']>=1 else 'red'}">Momentum {fitfmt(x['momentum']-1)}%</span>
+              <span class="chip dim">last {momraces}: {x['recent_ppr']:.1f} vs {x['season_ppr']:.1f} pts/race</span>
+              <span class="chip {'green' if x['dev_factor']>1 else 'dim'}">Car dev {fitfmt(x['dev_factor']-1)}% · {x['upgrades']} upgrade news</span>
+              <span class="chip {'green' if x['news_factor']>1 else ('red' if x['news_factor']<1 else 'dim')}">News {fitfmt(x['news_factor']-1)}% · {x['news_mentions']} mentions</span>
+              {f'<span class="chip red">⚠ Grid penalty reported</span>' if x['penalty'] else ''}
+            </div>
+            <div class="divider"></div>
             <div class="flex gap8 wrap-f" style="font-size:12px">
               <span class="chip lime">Race strength {x['race_strength']:.3f}</span>
-              <span class="chip dim">= rating {x['rating']:.3f} × fit {x['fit']:.3f} × history {x['track_factor']:.3f}</span>
+              <span class="chip dim">= rating {x['rating']:.3f} × fit {x['fit']:.3f} × history {x['track_factor']:.3f} × dev {x['dev_factor']:.3f}</span>
+              <span class="chip {'green' if x['next_factor']>=1 else 'red'}">Next-race ×{x['next_factor']:.3f}</span>
               <span class="chip dim">Exp. pts here {x['exp_next_pts']:.1f}</span>
             </div>
           </div>
