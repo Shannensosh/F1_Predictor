@@ -771,9 +771,10 @@ def build_schedule(d):
       <span class="flex ac gap8"><span class="teamdot" style="--c:#27D45F"></span>Next race</span>
       <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Upcoming</span>
       <span class="leg-sep"></span>
-      <span class="flex ac gap8"><span class="teamdot" style="--c:#E10600"></span>Zone 1</span>
-      <span class="flex ac gap8"><span class="teamdot" style="--c:#19C3B1"></span>Zone 2</span>
-      <span class="flex ac gap8"><span class="teamdot" style="--c:#F4D34A"></span>Zone 3</span>
+      <span class="flex ac gap8"><span class="leg-line" style="--c:#19C3B1"></span>Full-throttle</span>
+      <span class="flex ac gap8"><span class="leg-line" style="--c:#F4D34A"></span>DRS zone</span>
+      <span class="flex ac gap8"><span class="leg-line" style="--c:#0c0c12"></span>Corner</span>
+      <span class="flex ac gap8"><span class="trk-turn lg">1</span>Turn no.</span>
     </div>"""
 
     worldmap = f"""
@@ -799,7 +800,7 @@ def build_schedule(d):
     js = r"""
 var PD=PAGE_DATA(), RACES=PD.races, CIRC=PD.circuits;
 var COL={done:'#9b9ba8',next:'#27D45F',up:'#E10600'};
-var MAP=null, trackLayer=null, currentRound=null;
+var MAP=null, trackLayer=null, labelLayer=null, labelMarkers=[], currentRound=null;
 function jumpTo(rnd){var el=document.getElementById('r'+rnd);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
 function scrollCards(dir){var el=document.getElementById('rcRow');if(el)el.scrollBy({left:dir*Math.max(280,el.clientWidth*0.8),behavior:'smooth'});}
 function markCard(rnd){var row=document.getElementById('rcRow');if(!row)return;
@@ -827,15 +828,55 @@ function outlineLatLng(c){
 }
 
 function cap(s){return (s||'').charAt(0).toUpperCase()+(s||'').slice(1);}
-var ZC=['#E10600','#19C3B1','#F4D34A'];   // track zones Z1 / Z2 / Z3
-function splitZones(coords){
-  var n=coords.length; if(n<6) return [coords];
-  function dist(a,b){var dy=a[0]-b[0],dx=(a[1]-b[1])*Math.cos(a[0]*Math.PI/180);return Math.sqrt(dx*dx+dy*dy);}
-  var cum=[0]; for(var i=1;i<n;i++)cum.push(cum[i-1]+dist(coords[i-1],coords[i]));
-  var tot=cum[n-1]||1, b1=tot/3, b2=2*tot/3, s=[[],[],[]];
-  for(var i=0;i<n;i++){var z=cum[i]<=b1?0:(cum[i]<=b2?1:2); s[z].push(coords[i]);}
-  if(s[1].length)s[0].push(s[1][0]); if(s[2].length)s[1].push(s[2][0]);
-  return s;
+// ── Track analysis: derive turns, full-throttle straights and DRS zones from
+// the real circuit geometry (like formula-timer.com), purely from the outline.
+var COL_STR='#19C3B1';   // full-throttle straight
+var COL_DRS='#F4D34A';   // DRS zone (subset of the straights)
+function _resample(coords){
+  var n=coords.length, lat0=coords[0][0];
+  var kx=111320*Math.cos(lat0*Math.PI/180), ky=111320;        // deg → metres
+  var xy=coords.map(function(p){return [p[1]*kx, p[0]*ky];});
+  var cum=[0];
+  for(var i=1;i<n;i++){var dx=xy[i][0]-xy[i-1][0],dy=xy[i][1]-xy[i-1][1];cum.push(cum[i-1]+Math.sqrt(dx*dx+dy*dy));}
+  var tot=cum[n-1]||1, N=Math.max(80,Math.min(460,Math.round(tot/30))), step=tot/N;
+  var ll=[], pxy=[], seg=1;
+  for(var s=0;s<N;s++){
+    var t=s*step; while(seg<n-1 && cum[seg]<t) seg++;
+    var t0=cum[seg-1],t1=cum[seg],f=(t1>t0)?(t-t0)/(t1-t0):0;
+    ll.push([coords[seg-1][0]+(coords[seg][0]-coords[seg-1][0])*f,
+             coords[seg-1][1]+(coords[seg][1]-coords[seg-1][1])*f]);
+    pxy.push([xy[seg-1][0]+(xy[seg][0]-xy[seg-1][0])*f, xy[seg-1][1]+(xy[seg][1]-xy[seg-1][1])*f]);
+  }
+  return {ll:ll, xy:pxy, step:step, N:N};
+}
+function analyzeTrack(coords, drsCount){
+  var rs=_resample(coords), xy=rs.xy, N=rs.N;
+  var head=[]; for(var i=0;i<N;i++){var a=xy[i],b=xy[(i+1)%N];head.push(Math.atan2(b[1]-a[1],b[0]-a[0]));}
+  var dh=[]; for(var i=0;i<N;i++){var d=head[i]-head[(i-1+N)%N];while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;dh.push(Math.abs(d));}
+  var sm=[]; for(var i=0;i<N;i++){var s=0;for(var j=-1;j<=1;j++)s+=dh[(i+j+N)%N];sm.push(s/3);}
+  var thr=rs.step/300;                                          // corner if tighter than ~300 m radius
+  var corner=[]; for(var i=0;i<N;i++)corner.push(sm[i]>thr);
+  // rotate so scanning starts at the beginning of a straight (after a corner)
+  var start=-1; for(var i=0;i<N;i++){if(!corner[i] && corner[(i-1+N)%N]){start=i;break;}}
+  if(start<0) start=0;
+  var turns=[], straights=[], k=0;
+  while(k<N){
+    var v=corner[(start+k)%N], run=[];
+    while(k<N && corner[(start+k)%N]===v){run.push((start+k)%N);k++;}
+    if(v){ if(run.length>=1) turns.push(run); } else { if(run.length>=2) straights.push(run); }
+  }
+  // turn apex = sharpest point in the run
+  var turnPts=turns.map(function(run){var bi=run[0],bv=-1;run.forEach(function(idx){if(sm[idx]>bv){bv=sm[idx];bi=idx;}});return rs.ll[bi];});
+  // DRS = the longest `drsCount` straights; remember which straights are DRS
+  var order=straights.map(function(r,i){return {i:i,len:r.length};}).sort(function(a,b){return b.len-a.len;});
+  var drsSet={}; for(var d=0;d<Math.min(drsCount||0,order.length);d++) drsSet[order[d].i]=1;
+  var strLines=[], drsLines=[], drsMids=[];
+  straights.forEach(function(run,i){
+    var line=run.map(function(idx){return rs.ll[idx];});
+    if(drsSet[i]){ drsLines.push(line); drsMids.push(rs.ll[run[Math.floor(run.length/2)]]); }
+    else strLines.push(line);
+  });
+  return {turnPts:turnPts, strLines:strLines, drsLines:drsLines, drsMids:drsMids};
 }
 // Fixed, semi-transparent info panel pinned to the map's bottom-right. The map
 // always fits the circuit into the area NOT covered by the panel (FITPAD), so the
@@ -869,6 +910,23 @@ function showInfo(c){var el=document.getElementById('circInfo'); if(!el)return;
   el.innerHTML=circInfoHTML(c); el.classList.add('on');}
 function hideInfo(){var el=document.getElementById('circInfo'); if(el)el.classList.remove('on');}
 
+// Hide overlapping turn / DRS labels. DRS tags get priority, then turns in order.
+function declutter(){
+  if(!MAP) return; var placed=[], SEP=24;
+  labelMarkers.forEach(function(m){
+    var el=m.getElement(); if(!el) return;
+    var p=MAP.latLngToContainerPoint(m.getLatLng()), ok=true;
+    for(var j=0;j<placed.length;j++){var dx=p.x-placed[j].x,dy=p.y-placed[j].y;
+      if(dx*dx+dy*dy<SEP*SEP){ok=false;break;}}
+    if(ok){placed.push(p);el.style.visibility='visible';} else {el.style.visibility='hidden';}
+  });
+}
+function addLabel(ll, html, cls, w){
+  var m=L.marker(ll,{icon:L.divIcon({className:'',html:'<span class="'+cls+'">'+html+'</span>',
+    iconSize:[w,18],iconAnchor:[w/2,9]}),interactive:false,keyboard:false}).addTo(labelLayer);
+  labelMarkers.push(m);
+}
+
 function showCircuit(rnd, fly){
   var c=CIRC[rnd]; if(!c) return;
   currentRound=+rnd;
@@ -876,18 +934,21 @@ function showCircuit(rnd, fly){
   if(fly) focusCard(rnd);
   if(!MAP) return;
   var coords=outlineLatLng(c);
-  trackLayer.clearLayers();
+  trackLayer.clearLayers(); labelLayer.clearLayers(); labelMarkers=[];
   if(coords){
-    L.polyline(coords,{color:'#0c0c12',weight:11,opacity:.92}).addTo(trackLayer);          // casing
-    splitZones(coords).forEach(function(seg,i){ if(seg.length>1)
-      L.polyline(seg,{color:ZC[i],weight:5,opacity:1}).addTo(trackLayer); });               // Z1/Z2/Z3
-    L.circleMarker(coords[0],{radius:5,color:'#fff',weight:2,fillColor:'#27D45F',fillOpacity:1}).addTo(trackLayer);
+    L.polyline(coords,{color:'#0c0c12',weight:10,opacity:.95}).addTo(trackLayer);           // casing (corners)
+    var A=analyzeTrack(coords, c.drs);
+    A.strLines.forEach(function(l){L.polyline(l,{color:COL_STR,weight:5,opacity:.95}).addTo(trackLayer);});  // full-throttle
+    A.drsLines.forEach(function(l){L.polyline(l,{color:COL_DRS,weight:6,opacity:1}).addTo(trackLayer);});    // DRS
+    L.circleMarker(coords[0],{radius:5,color:'#fff',weight:2,fillColor:'#27D45F',fillOpacity:1}).addTo(trackLayer); // start/finish
+    A.drsMids.forEach(function(ll){addLabel(ll,'DRS','trk-drs',34);});                        // DRS tags first (priority)
+    A.turnPts.forEach(function(ll,i){addLabel(ll,(i+1),'trk-turn',18);});                     // numbered turns
   }
   if(fly!==false){
     if(coords) MAP.flyToBounds(L.latLngBounds(coords), Object.assign({duration:1.2}, FITPAD));
     else MAP.flyTo([c.lat,c.lng], 12, {duration:1.2});
   }
-  showInfo(c);
+  showInfo(c); declutter();
   if(fly){var cc=document.getElementById('circuitCard');if(cc)cc.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 
@@ -913,6 +974,8 @@ function initMap(){
   MAP=L.map('lmap',{layers:[sat],zoomSnap:0,worldCopyJump:true}).setView([28,12],2.4);
   L.control.layers({'Dark map':dark,'Satellite':sat},null,{position:'topleft'}).addTo(MAP);
   trackLayer=L.layerGroup().addTo(MAP);
+  labelLayer=L.layerGroup().addTo(MAP);
+  MAP.on('zoomend moveend', declutter);
   // season route (dashed) + race pins
   L.polyline(RACES.map(function(r){return [r.lat,r.lng];}),
     {color:'#E10600',weight:1,opacity:.35,dashArray:'4 6'}).addTo(MAP);
