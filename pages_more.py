@@ -884,10 +884,14 @@ def build_prediction(d, ctx):
             segs.append({"name": "Others", "color": "#3a3a46", "pct": others})
         lead = top[0]
         dn = _donut(segs, f'{lead["pct"]:.0f}%', lead["name"])
-        legend = "".join(
-            f'<div class="dn-row"><span class="teamdot" style="--c:{s["color"]}"></span>'
-            f'<span class="dn-name">{esc(s["name"])}</span>'
-            f'<span class="dn-pct">{s["pct"]:.1f}%</span></div>' for s in segs)
+        def _leg(s):
+            did = s.get("did")
+            cls = "dn-row click" if did else "dn-row"
+            click = f' onclick="openPred(\'{did}\')" title="Factor breakdown"' if did else ""
+            return (f'<div class="{cls}"{click}><span class="teamdot" style="--c:{s["color"]}"></span>'
+                    f'<span class="dn-name">{esc(s["name"])}</span>'
+                    f'<span class="dn-pct">{s["pct"]:.1f}%</span></div>')
+        legend = "".join(_leg(s) for s in segs)
         return (f'<div class="card"><div class="sec-title" style="margin-top:0">{title}</div>'
                 f'<div class="dn-wrap">{dn}<div class="dn-legend">{legend}</div></div></div>')
 
@@ -896,9 +900,9 @@ def build_prediction(d, ctx):
             n = n.replace(suf, "")
         return n
     win_rows = [{"name": x["name"].split()[-1], "color": team_color(x["constructorId"]),
-                 "pct": x["win_pct"]} for x in drivers]
+                 "pct": x["win_pct"], "did": x["driverId"]} for x in drivers]
     drv_rows = [{"name": x["name"].split()[-1], "color": team_color(x["constructorId"]),
-                 "pct": x["title_pct"]} for x in drivers]
+                 "pct": x["title_pct"], "did": x["driverId"]} for x in drivers]
     con_rows = [{"name": _short(x["name"]), "color": team_color(x["constructorId"]),
                  "pct": x["title_pct"]} for x in cons]
 
@@ -977,8 +981,10 @@ def build_prediction(d, ctx):
     wts = m["weights"]
     momraces = m.get("momentum_races", 3)
     nr_short = esc(nr["name"].replace(" Grand Prix", ""))
-    details = []
+    PRED = {}          # driverId → modal HTML (rendered on click, drivers-tab style)
+    strip_cards = ""   # compact clickable chooser, one per driver
     for x in drivers[:14]:
+        did = x["driverId"]
         fp = x["fit_parts"]
         trk = (f'{x["track_avg_finish"]:.1f} avg finish'
                if x["track_avg_finish"] is not None else "no prior history")
@@ -986,16 +992,15 @@ def build_prediction(d, ctx):
             f'{lbl} {fitfmt(fp[k])}' for k, lbl in
             [("downforce", "downforce"), ("power", "power"), ("tyre", "tyre"),
              ("weight", "weight"), ("balance", "balance")])
-        details.append(f"""
-        <details class="card" style="margin-bottom:8px">
-          <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
-            <span class="teamdot" style="--c:{team_color(x['constructorId'])}"></span>
-            <b>{esc(x['name'])}</b><span class="muted" style="font-size:12px">{esc(x['constructor'])}</span>
-            <span style="margin-left:auto" class="chip lime">{x['win_pct']:.1f}% win</span>
-            <span class="chip green">{x['podium_pct']:.0f}% podium</span>
-            <span class="chip">{x['title_pct']:.1f}% title</span>
-          </summary>
-          <div style="margin-top:12px">
+        head = (f'<div class="pred-head">'
+                f'<span class="teamdot" style="--c:{team_color(x["constructorId"])}"></span>'
+                f'<b style="font-size:18px">{esc(x["name"])}</b>'
+                f'<span class="muted" style="font-size:12.5px">{esc(x["constructor"])}</span>'
+                f'<span style="margin-left:auto" class="chip lime">{x["win_pct"]:.1f}% win</span>'
+                f'<span class="chip green">{x["podium_pct"]:.0f}% podium</span>'
+                f'<span class="chip">{x["title_pct"]:.1f}% title</span></div>')
+        body_html = f"""
+          <div>
             <div class="caps" style="margin-bottom:6px">Base power rating = {x['rating']:.3f} (weighted sum)</div>
             {bar_row(f"Form ×{wts['form']:.2f}", x["form_n"], f'+{x["contrib"]["form"]*100:.0f}')}
             {bar_row(f"Qualifying ×{wts['quali']:.2f}", x["quali_n"], f'P{x["avg_grid"]:.0f}')}
@@ -1027,8 +1032,34 @@ def build_prediction(d, ctx):
               <span class="chip {'green' if x['next_factor']>=1 else 'red'}">Next-race ×{x['next_factor']:.3f}</span>
               <span class="chip dim">Exp. pts here {x['exp_next_pts']:.1f}</span>
             </div>
-          </div>
-        </details>""")
+          </div>"""
+        PRED[did] = ('<button class="drv-close" onclick="closePred(event)">‹ Back</button>'
+                     + head + body_html)
+        strip_cards += (
+            f'<button class="pred-card" style="--c:{team_color(x["constructorId"])}" '
+            f'onclick="openPred(\'{did}\')">'
+            f'<span class="teamdot" style="--c:{team_color(x["constructorId"])}"></span>'
+            f'<span class="pc-name">{esc(x["name"].split()[-1])}</span>'
+            f'<span class="pc-stat"><b>{x["win_pct"]:.1f}%</b><small>win</small></span>'
+            f'<span class="pc-stat t"><b>{x["title_pct"]:.1f}%</b><small>title</small></span></button>')
+
+    breakdown = (
+        '<div class="sec-title">Driver Factor Breakdown</div>'
+        '<p class="muted" style="font-size:12.5px;margin:-4px 0 12px">Tap any driver — '
+        'in the donuts above or the row below — to see how their rating is built and adjusted for '
+        + nr_short + '.</p>'
+        f'<div class="pred-strip">{strip_cards}</div>'
+        '<div class="drv-modal" id="pred-modal" onclick="closePred(event)">'
+        '<div class="drv-detail pred-detail" id="pred-detail" onclick="event.stopPropagation()"></div></div>')
+
+    pred_js = r"""
+var PD=PAGE_DATA();
+function openPred(did){var x=PD[did]; if(!x)return;
+  var det=document.getElementById('pred-detail'); det.innerHTML=x; det.scrollTop=0;
+  document.getElementById('pred-modal').classList.add('open'); document.body.style.overflow='hidden';}
+function closePred(e){document.getElementById('pred-modal').classList.remove('open'); document.body.style.overflow='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closePred();});
+"""
 
     methodology = f"""
     <div class="sec-title">How the numbers are produced</div>
@@ -1061,9 +1092,6 @@ def build_prediction(d, ctx):
             'recency-weighted, and Monte-Carlo simulated.</p></div></div>'
             + header + grids
             + catalogue
-            + '<div class="sec-title">Driver Factor Breakdown</div>'
-            + '<p class="muted" style="font-size:12.5px;margin:-4px 0 12px">Click a driver to see how '
-              'their rating is built and adjusted for ' + nr_short + '.</p>'
-            + "".join(details)
+            + breakdown
             + methodology)
-    return page("PITWALL F1 · Prediction", "Prediction", body)
+    return page("PITWALL F1 · Prediction", "Prediction", body, data=PRED, js=pred_js)
