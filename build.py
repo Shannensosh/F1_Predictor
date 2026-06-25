@@ -773,7 +773,8 @@ def build_schedule(d):
       <span class="leg-sep"></span>
       <span class="flex ac gap8"><span class="leg-line" style="--c:#19C3B1"></span>Full-throttle</span>
       <span class="flex ac gap8"><span class="leg-line" style="--c:#F4D34A"></span>DRS zone</span>
-      <span class="flex ac gap8"><span class="leg-line" style="--c:#0c0c12"></span>Corner</span>
+      <span class="flex ac gap8"><span class="trk-det lg">DET</span>DRS detection</span>
+      <span class="flex ac gap8"><span class="trk-trap lg">◉</span>Speed trap</span>
       <span class="flex ac gap8"><span class="trk-turn lg">1</span>Turn no.</span>
     </div>"""
 
@@ -838,7 +839,7 @@ function _resample(coords){
   var xy=coords.map(function(p){return [p[1]*kx, p[0]*ky];});
   var cum=[0];
   for(var i=1;i<n;i++){var dx=xy[i][0]-xy[i-1][0],dy=xy[i][1]-xy[i-1][1];cum.push(cum[i-1]+Math.sqrt(dx*dx+dy*dy));}
-  var tot=cum[n-1]||1, N=Math.max(80,Math.min(460,Math.round(tot/30))), step=tot/N;
+  var tot=cum[n-1]||1, N=Math.max(120,Math.min(640,Math.round(tot/22))), step=tot/N;
   var ll=[], pxy=[], seg=1;
   for(var s=0;s<N;s++){
     var t=s*step; while(seg<n-1 && cum[seg]<t) seg++;
@@ -849,34 +850,61 @@ function _resample(coords){
   }
   return {ll:ll, xy:pxy, step:step, N:N};
 }
-function analyzeTrack(coords, drsCount){
+function analyzeTrack(coords, drsCount, turnCount){
   var rs=_resample(coords), xy=rs.xy, N=rs.N;
+  var lat0=coords[0][0], kx=111320*Math.cos(lat0*Math.PI/180), ky=111320;
+  function toLL(x,y){return [y/ky, x/kx];}
+  // centroid + span (for outward turn-label offset)
+  var cx=0,cy=0,minx=1e18,maxx=-1e18,miny=1e18,maxy=-1e18;
+  for(var i=0;i<N;i++){cx+=xy[i][0];cy+=xy[i][1];minx=Math.min(minx,xy[i][0]);maxx=Math.max(maxx,xy[i][0]);miny=Math.min(miny,xy[i][1]);maxy=Math.max(maxy,xy[i][1]);}
+  cx/=N; cy/=N; var span=Math.max(maxx-minx,maxy-miny)||1;
   var head=[]; for(var i=0;i<N;i++){var a=xy[i],b=xy[(i+1)%N];head.push(Math.atan2(b[1]-a[1],b[0]-a[0]));}
-  var dh=[]; for(var i=0;i<N;i++){var d=head[i]-head[(i-1+N)%N];while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;dh.push(Math.abs(d));}
-  var sm=[]; for(var i=0;i<N;i++){var s=0;for(var j=-1;j<=1;j++)s+=dh[(i+j+N)%N];sm.push(s/3);}
-  var thr=rs.step/300;                                          // corner if tighter than ~300 m radius
-  var corner=[]; for(var i=0;i<N;i++)corner.push(sm[i]>thr);
-  // rotate so scanning starts at the beginning of a straight (after a corner)
+  var adh=[]; for(var i=0;i<N;i++){var d=head[i]-head[(i-1+N)%N];while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;adh.push(Math.abs(d));}
+  var sm=[]; for(var i=0;i<N;i++){var s=0;for(var j=-1;j<=1;j++)s+=adh[(i+j+N)%N];sm.push(s/3);}
+  // straight / corner mask (for full-throttle vs DRS colouring)
+  var thrStr=rs.step/320;
+  var corner=[]; for(var i=0;i<N;i++)corner.push(sm[i]>thrStr);
   var start=-1; for(var i=0;i<N;i++){if(!corner[i] && corner[(i-1+N)%N]){start=i;break;}}
   if(start<0) start=0;
-  var turns=[], straights=[], k=0;
+  var straights=[], k=0;
   while(k<N){
     var v=corner[(start+k)%N], run=[];
     while(k<N && corner[(start+k)%N]===v){run.push((start+k)%N);k++;}
-    if(v){ if(run.length>=1) turns.push(run); } else { if(run.length>=2) straights.push(run); }
+    if(!v && run.length>=2) straights.push(run);
   }
-  // turn apex = sharpest point in the run
-  var turnPts=turns.map(function(run){var bi=run[0],bv=-1;run.forEach(function(idx){if(sm[idx]>bv){bv=sm[idx];bi=idx;}});return rs.ll[bi];});
-  // DRS = the longest `drsCount` straights; remember which straights are DRS
-  var order=straights.map(function(r,i){return {i:i,len:r.length};}).sort(function(a,b){return b.len-a.len;});
+  // TURNS: candidate apexes = local maxima of curvature → greedily pick EXACTLY
+  // the official number of corners (so the on-map count matches the info card).
+  var cands=[];
+  for(var i=0;i<N;i++){var a=sm[(i-1+N)%N],b=sm[i],cc=sm[(i+1)%N];
+    if(b>=a && b>cc && b>rs.step/2600) cands.push({pos:i,str:b});}
+  cands.sort(function(a,b){return b.str-a.str;});
+  var Nturns=Math.min(turnCount||cands.length, cands.length);
+  var minSep=Math.max(2, Math.floor((N/Math.max(Nturns,1))*0.30));
+  function farEnough(p,arr){for(var j=0;j<arr.length;j++){var dp=Math.abs(p-arr[j].pos);dp=Math.min(dp,N-dp);if(dp<minSep)return false;}return true;}
+  var keep=[];
+  for(var ci=0;ci<cands.length && keep.length<Nturns;ci++){ if(farEnough(cands[ci].pos,keep)) keep.push(cands[ci]); }
+  for(var ci=0;ci<cands.length && keep.length<Nturns;ci++){    // relax spacing if still short
+    var p=cands[ci].pos,dup=false; for(var j=0;j<keep.length;j++){if(keep[j].pos===p){dup=true;break;}}
+    if(!dup) keep.push(cands[ci]);
+  }
+  keep.sort(function(a,b){return a.pos-b.pos;});               // number in track order
+  var off=span*0.045;                                          // push labels outside the track
+  var turnPts=keep.map(function(g){var a=xy[g.pos],dx=a[0]-cx,dy=a[1]-cy,m=Math.sqrt(dx*dx+dy*dy)||1;
+    return toLL(a[0]+dx/m*off, a[1]+dy/m*off);});
+  // straights → full-throttle; DRS = the longest `drsCount`; detection just before each DRS zone
+  var sInfo=straights.map(function(run,i){return {run:run,len:run.length,i:i};});
+  var order=sInfo.slice().sort(function(a,b){return b.len-a.len;});
   var drsSet={}; for(var d=0;d<Math.min(drsCount||0,order.length);d++) drsSet[order[d].i]=1;
-  var strLines=[], drsLines=[], drsMids=[];
-  straights.forEach(function(run,i){
-    var line=run.map(function(idx){return rs.ll[idx];});
-    if(drsSet[i]){ drsLines.push(line); drsMids.push(rs.ll[run[Math.floor(run.length/2)]]); }
+  var strLines=[], drsLines=[], drsMids=[], drsDet=[];
+  sInfo.forEach(function(si){
+    var run=si.run, line=run.map(function(idx){return rs.ll[idx];});
+    if(drsSet[si.i]){ drsLines.push(line); drsMids.push(rs.ll[run[Math.floor(run.length/2)]]);
+      drsDet.push(rs.ll[(run[0]-4+N)%N]); }                    // detection ~120 m before the zone
     else strLines.push(line);
   });
-  return {turnPts:turnPts, strLines:strLines, drsLines:drsLines, drsMids:drsMids};
+  // speed trap: near the fast end of the single longest straight
+  var trap=null; if(order.length){var lr=order[0].run; trap=rs.ll[lr[Math.floor(lr.length*0.82)]];}
+  return {turnPts:turnPts, strLines:strLines, drsLines:drsLines, drsMids:drsMids, drsDet:drsDet, trap:trap};
 }
 // Fixed, semi-transparent info panel pinned to the map's bottom-right. The map
 // always fits the circuit into the area NOT covered by the panel (FITPAD), so the
@@ -910,21 +938,41 @@ function showInfo(c){var el=document.getElementById('circInfo'); if(!el)return;
   el.innerHTML=circInfoHTML(c); el.classList.add('on');}
 function hideInfo(){var el=document.getElementById('circInfo'); if(el)el.classList.remove('on');}
 
-// Hide overlapping turn / DRS labels. DRS tags get priority, then turns in order.
+// Spread the numbered turns in screen space (repulsion + spring back to the
+// corner) so every official turn shows without overlapping any other turn.
+function layoutTurns(){
+  if(!MAP) return;
+  var turns=labelMarkers.filter(function(o){return o.t==='turn';});
+  if(!turns.length) return;
+  var anchor=turns.map(function(o){return MAP.latLngToContainerPoint(L.latLng(o.anchor));});
+  var pos=anchor.map(function(p){return {x:p.x,y:p.y};});
+  var R=22, sp=0.13;
+  for(var it=0; it<95; it++){
+    for(var i=0;i<pos.length;i++){pos[i].x+=(anchor[i].x-pos[i].x)*sp; pos[i].y+=(anchor[i].y-pos[i].y)*sp;}
+    for(var i=0;i<pos.length;i++)for(var j=i+1;j<pos.length;j++){
+      var dx=pos[j].x-pos[i].x, dy=pos[j].y-pos[i].y, d=Math.sqrt(dx*dx+dy*dy)||0.01;
+      if(d<R){var pu=(R-d)/2, ux=dx/d, uy=dy/d; pos[i].x-=ux*pu; pos[i].y-=uy*pu; pos[j].x+=ux*pu; pos[j].y+=uy*pu;}
+    }
+  }
+  turns.forEach(function(o,i){o.m.setLatLng(MAP.containerPointToLatLng(L.point(pos[i].x,pos[i].y)));});
+}
+// Turns always show (count = card). Auxiliary tags yield to avoid overlap.
 function declutter(){
-  if(!MAP) return; var placed=[], SEP=24;
-  labelMarkers.forEach(function(m){
-    var el=m.getElement(); if(!el) return;
-    var p=MAP.latLngToContainerPoint(m.getLatLng()), ok=true;
+  if(!MAP) return; var placed=[], SEP=20;
+  labelMarkers.forEach(function(o){ if(o.t!=='turn') return; var el=o.m.getElement(); if(!el) return;
+    el.style.visibility='visible'; placed.push(MAP.latLngToContainerPoint(o.m.getLatLng())); });
+  labelMarkers.forEach(function(o){ if(o.t==='turn') return; var el=o.m.getElement(); if(!el) return;
+    var p=MAP.latLngToContainerPoint(o.m.getLatLng()), ok=true;
     for(var j=0;j<placed.length;j++){var dx=p.x-placed[j].x,dy=p.y-placed[j].y;
       if(dx*dx+dy*dy<SEP*SEP){ok=false;break;}}
-    if(ok){placed.push(p);el.style.visibility='visible';} else {el.style.visibility='hidden';}
+    if(ok){placed.push(p);el.style.visibility='visible';} else el.style.visibility='hidden';
   });
 }
-function addLabel(ll, html, cls, w){
+function relayout(){ layoutTurns(); declutter(); }
+function addLabel(ll, html, cls, w, t){
   var m=L.marker(ll,{icon:L.divIcon({className:'',html:'<span class="'+cls+'">'+html+'</span>',
-    iconSize:[w,18],iconAnchor:[w/2,9]}),interactive:false,keyboard:false}).addTo(labelLayer);
-  labelMarkers.push(m);
+    iconSize:[w,18],iconAnchor:[w/2,9]}),interactive:false,keyboard:false,zIndexOffset:(t==='turn'?1000:600)}).addTo(labelLayer);
+  labelMarkers.push({m:m, t:t||'aux', anchor:ll});
 }
 
 function showCircuit(rnd, fly){
@@ -937,18 +985,21 @@ function showCircuit(rnd, fly){
   trackLayer.clearLayers(); labelLayer.clearLayers(); labelMarkers=[];
   if(coords){
     L.polyline(coords,{color:'#0c0c12',weight:10,opacity:.95}).addTo(trackLayer);           // casing (corners)
-    var A=analyzeTrack(coords, c.drs);
+    var A=analyzeTrack(coords, c.drs, c.turns);
     A.strLines.forEach(function(l){L.polyline(l,{color:COL_STR,weight:5,opacity:.95}).addTo(trackLayer);});  // full-throttle
     A.drsLines.forEach(function(l){L.polyline(l,{color:COL_DRS,weight:6,opacity:1}).addTo(trackLayer);});    // DRS
     L.circleMarker(coords[0],{radius:5,color:'#fff',weight:2,fillColor:'#27D45F',fillOpacity:1}).addTo(trackLayer); // start/finish
-    A.drsMids.forEach(function(ll){addLabel(ll,'DRS','trk-drs',34);});                        // DRS tags first (priority)
-    A.turnPts.forEach(function(ll,i){addLabel(ll,(i+1),'trk-turn',18);});                     // numbered turns
+    // auxiliary tags first (priority order), then the numbered turns (always shown)
+    if(A.trap) addLabel(A.trap,'◉ SPEED TRAP','trk-trap',86,'aux');
+    A.drsMids.forEach(function(ll){addLabel(ll,'DRS','trk-drs',34,'aux');});
+    A.drsDet.forEach(function(ll){addLabel(ll,'DRS DET','trk-det',46,'aux');});
+    A.turnPts.forEach(function(ll,i){addLabel(ll,(i+1),'trk-turn',18,'turn');});             // numbered = official count
   }
   if(fly!==false){
     if(coords) MAP.flyToBounds(L.latLngBounds(coords), Object.assign({duration:1.2}, FITPAD));
     else MAP.flyTo([c.lat,c.lng], 12, {duration:1.2});
   }
-  showInfo(c); declutter();
+  showInfo(c); relayout();
   if(fly){var cc=document.getElementById('circuitCard');if(cc)cc.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 
@@ -975,7 +1026,7 @@ function initMap(){
   L.control.layers({'Dark map':dark,'Satellite':sat},null,{position:'topleft'}).addTo(MAP);
   trackLayer=L.layerGroup().addTo(MAP);
   labelLayer=L.layerGroup().addTo(MAP);
-  MAP.on('zoomend moveend', declutter);
+  MAP.on('zoomend moveend', relayout);
   // season route (dashed) + race pins
   L.polyline(RACES.map(function(r){return [r.lat,r.lng];}),
     {color:'#E10600',weight:1,opacity:.35,dashArray:'4 6'}).addTo(MAP);

@@ -674,6 +674,12 @@ select:focus,input:focus{outline:none;border-color:var(--lime)}
 .trk-drs{display:inline-flex;align-items:center;justify-content:center;height:16px;padding:0 6px;
   border-radius:4px;background:#F4D34A;color:#15151E;font-family:'Titillium Web';font-weight:800;
   font-size:9px;letter-spacing:.06em;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.trk-det{display:inline-flex;align-items:center;justify-content:center;height:15px;padding:0 5px;
+  border-radius:4px;background:rgba(12,12,18,.85);color:#F4D34A;border:1px dashed #F4D34A;
+  font-family:'Titillium Web';font-weight:700;font-size:8px;letter-spacing:.05em}
+.trk-trap{display:inline-flex;align-items:center;justify-content:center;height:16px;padding:0 6px;
+  border-radius:4px;background:#3DD6E0;color:#0a2a2c;font-family:'Titillium Web';font-weight:800;
+  font-size:8.5px;letter-spacing:.04em;box-shadow:0 1px 4px rgba(0,0,0,.5)}
 
 /* ── circuit info panel (fixed, semi-transparent, bottom-right of map) ───── */
 .circ-info{position:absolute;right:12px;bottom:12px;z-index:850;width:248px;max-width:46%;
