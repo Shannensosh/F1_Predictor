@@ -849,44 +849,64 @@ def build_prediction(d, ctx):
     # (Race-day forecast + wet-weather pace panel removed per request — the wet
     # factor still feeds the model and is documented in the factor catalogue.)
 
-    # next-race win% + podium bars
-    wmax = drivers[0]["win_pct"] or 1
-    win_bars = "".join(
-        f'<div class="barrow"><span class="blabel">{flag("")}{esc(x["name"].split()[-1])}</span>'
-        f'<span class="bar"><i style="width:{(x["win_pct"]/wmax*100):.0f}%;background:{team_color(x["constructorId"])}"></i></span>'
-        f'<span class="bval">{x["win_pct"]:.1f}%</span></div>'
-        for x in drivers if x["win_pct"] >= 0.05)
-    pod_bars = "".join(
-        f'<div class="barrow"><span class="blabel">{esc(x["name"].split()[-1])}</span>'
-        f'<span class="bar green"><i style="width:{min(100,x["podium_pct"]):.0f}%"></i></span>'
-        f'<span class="bval">{x["podium_pct"]:.0f}%</span></div>'
-        for x in sorted(drivers, key=lambda x: -x["podium_pct"])[:10])
+    # ── probability donuts: win · drivers' title · constructors' title ───────
+    import math
+    def _arc(cx, cy, r, a0, a1):
+        x0 = cx + r * math.cos(a0); y0 = cy + r * math.sin(a0)
+        x1 = cx + r * math.cos(a1); y1 = cy + r * math.sin(a1)
+        large = 1 if (a1 - a0) > math.pi else 0
+        return f'M{x0:.2f} {y0:.2f} A{r:.2f} {r:.2f} 0 {large} 1 {x1:.2f} {y1:.2f}'
 
-    # title bars
-    title_sorted = sorted(drivers, key=lambda x: -x["title_pct"])
-    tmax = title_sorted[0]["title_pct"] or 1
-    title_bars = "".join(
-        f'<div class="barrow"><span class="blabel"><b>{esc(x["name"].split()[-1])}</b> '
-        f'<span class="muted mono" style="font-size:10px">{x["current_points"]:.0f}p</span></span>'
-        f'<span class="bar"><i style="width:{(x["title_pct"]/tmax*100):.0f}%;background:{team_color(x["constructorId"])}"></i></span>'
-        f'<span class="bval">{x["title_pct"]:.1f}%</span></div>'
-        for x in title_sorted if x["title_pct"] >= 0.05)
-    cmax = cons[0]["title_pct"] or 1
-    cons_bars = "".join(
-        f'<div class="barrow"><span class="blabel">{esc(x["name"])}</span>'
-        f'<span class="bar"><i style="width:{(x["title_pct"]/cmax*100):.0f}%;background:{team_color(x["constructorId"])}"></i></span>'
-        f'<span class="bval">{x["title_pct"]:.1f}%</span></div>'
-        for x in cons if x["title_pct"] >= 0.05)
+    def _donut(segs, cap_a, cap_b, size=180, thick=22):
+        r = (size - thick) / 2 - 2; cx = cy = size / 2; acc = 0.0; arcs = ""
+        for s in segs:
+            frac = max(0.0, s["pct"]) / 100.0
+            if frac <= 0.0008:
+                continue
+            a0 = -math.pi / 2 + acc * 2 * math.pi
+            a1 = -math.pi / 2 + (acc + frac) * 2 * math.pi
+            arcs += (f'<path d="{_arc(cx, cy, r, a0, a1)}" fill="none" stroke="{s["color"]}" '
+                     f'stroke-width="{thick}"><title>{esc(s["name"])} · {s["pct"]:.1f}%</title></path>')
+            acc += frac
+        track = f'<circle cx="{cx}" cy="{cy}" r="{r:.2f}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="{thick}"/>'
+        center = (f'<text x="{cx}" y="{cy-1}" text-anchor="middle" class="dn-fig">{esc(cap_a)}</text>'
+                  f'<text x="{cx}" y="{cy+17}" text-anchor="middle" class="dn-sub">{esc(cap_b)}</text>')
+        return f'<svg viewBox="0 0 {size} {size}" class="dn-svg">{track}{arcs}{center}</svg>'
 
-    grids = f"""
-    <div class="grid g2" style="margin-top:20px;align-items:start">
-      <div class="card"><div class="sec-title" style="margin-top:0">{esc(nr['name'])} · Win Probability</div>{win_bars}</div>
-      <div class="card"><div class="sec-title" style="margin-top:0">Podium Probability</div>{pod_bars}</div>
-    </div>
-    <div class="grid g2" style="margin-top:14px;align-items:start">
-      <div class="card"><div class="sec-title" style="margin-top:0">2026 Drivers' Title</div>{title_bars}</div>
-      <div class="card"><div class="sec-title" style="margin-top:0">2026 Constructors' Title</div>{cons_bars}</div>
-    </div>"""
+    def _prob_card(title, rows, topn=6):
+        rows = sorted((r for r in rows if r["pct"] > 0), key=lambda r: -r["pct"])
+        if not rows:
+            return f'<div class="card"><div class="sec-title" style="margin-top:0">{title}</div><p class="muted">No data yet.</p></div>'
+        top = rows[:topn]
+        others = sum(r["pct"] for r in rows[topn:])
+        segs = list(top)
+        if others > 0.4:
+            segs.append({"name": "Others", "color": "#3a3a46", "pct": others})
+        lead = top[0]
+        dn = _donut(segs, f'{lead["pct"]:.0f}%', lead["name"])
+        legend = "".join(
+            f'<div class="dn-row"><span class="teamdot" style="--c:{s["color"]}"></span>'
+            f'<span class="dn-name">{esc(s["name"])}</span>'
+            f'<span class="dn-pct">{s["pct"]:.1f}%</span></div>' for s in segs)
+        return (f'<div class="card"><div class="sec-title" style="margin-top:0">{title}</div>'
+                f'<div class="dn-wrap">{dn}<div class="dn-legend">{legend}</div></div></div>')
+
+    def _short(n):
+        for suf in (" F1 Team", " Formula 1 Team", " Racing", " Team"):
+            n = n.replace(suf, "")
+        return n
+    win_rows = [{"name": x["name"].split()[-1], "color": team_color(x["constructorId"]),
+                 "pct": x["win_pct"]} for x in drivers]
+    drv_rows = [{"name": x["name"].split()[-1], "color": team_color(x["constructorId"]),
+                 "pct": x["title_pct"]} for x in drivers]
+    con_rows = [{"name": _short(x["name"]), "color": team_color(x["constructorId"]),
+                 "pct": x["title_pct"]} for x in cons]
+
+    grids = ('<div class="grid g3" style="margin-top:20px;align-items:start">'
+             + _prob_card(f"{esc(nr['name'])} · Win Probability", win_rows)
+             + _prob_card("2026 Drivers' Title", drv_rows)
+             + _prob_card("2026 Constructors' Title", con_rows)
+             + '</div>')
 
     # factor breakdown (expandable per driver)
     def fitfmt(v): return ("+" if v >= 0 else "") + f"{v*100:.1f}"

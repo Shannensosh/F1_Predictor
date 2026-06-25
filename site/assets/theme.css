@@ -759,6 +759,18 @@ select:focus,input:focus{outline:none;border-color:var(--lime)}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rc-foot-v.lime{color:var(--lime)} .rc-foot-v.muted{color:var(--muted);font-weight:600}
 
+/* ── prediction probability donuts ──────────────────────────────────────── */
+.dn-wrap{display:flex;gap:14px;align-items:center;margin-top:10px}
+.dn-svg{flex:0 0 150px;width:150px;height:150px}
+.dn-fig{fill:#fff;font-family:'JetBrains Mono';font-weight:700;font-size:27px}
+.dn-sub{fill:var(--muted);font-family:'Titillium Web';font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+.dn-legend{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.dn-row{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.dn-row .teamdot{width:9px;height:9px;border-radius:50%;margin:0}
+.dn-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--on)}
+.dn-pct{font-family:'JetBrains Mono';font-size:11.5px;color:#fff}
+@media(max-width:980px){.dn-wrap{flex-direction:column;align-items:stretch}.dn-svg{align-self:center}}
+
 /* ── sparkline / line chart ─────────────────────────────────────────────── */
 .linechart{width:100%;height:auto;display:block}
 .lc-axis{stroke:var(--outline);stroke-width:1}
