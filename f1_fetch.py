@@ -934,7 +934,15 @@ def fetch_all():
 
     print("» Latest F1 news (RSS)")
     news = fetch_news()
-    _save("news.json", news)
+    if not news:                         # transient RSS failure → keep yesterday's
+        try:                             # feed instead of blanking the dashboard
+            with open(os.path.join(DATA_DIR, "news.json")) as f:
+                news = json.load(f)
+            print(f"   ! RSS empty — carried forward {len(news)} previous headlines")
+        except Exception:
+            news = []
+    else:
+        _save("news.json", news)
     print(f"   {len(news)} headlines")
 
     print("✓ fetch complete")
