@@ -349,11 +349,12 @@ a.nf-card:hover{border-color:var(--lime);transform:translateY(-2px)}
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 @media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
 .card-chart{border:1px solid var(--outline-2);border-radius:var(--r-lg);
-  background:linear-gradient(180deg,#14141b,#0e0e13);padding:16px 16px 12px;margin-bottom:16px}
+  background:linear-gradient(180deg,#14141b,#0e0e13);padding:16px 16px 12px;margin-bottom:16px;min-width:0}
 .ch-title{font-family:'Titillium Web';font-weight:700;font-size:13px;letter-spacing:.04em;
   text-transform:uppercase;color:var(--lime);text-align:center;margin-bottom:10px}
-.ch-host{overflow-x:auto}
+.ch-host{overflow-x:auto;min-width:0}      /* min-width:0 lets the flex/grid cell shrink so the chart scrolls instead of widening the page */
 .ch-svg{width:100%;height:auto;display:block;min-width:480px}
+@media(max-width:560px){.ch-svg{min-width:340px}}
 .ch-grid{stroke:rgba(255,255,255,.08);stroke-width:1}
 .ch-ylab,.ch-xlab{fill:#8a8a93;font-family:'JetBrains Mono';font-size:10px}
 .ch-axtitle{fill:#9a9aa3;font-family:'Titillium Web';font-size:11px;letter-spacing:.05em}
@@ -845,4 +846,26 @@ footer{border-top:1px solid #2A2A36;color:var(--muted);font-size:12px;padding:22
 @media(max-width:620px){
   .g2,.g4,.g6{grid-template-columns:1fr} .wrap{padding:0 14px}
   .page-head h1{font-size:24px}
+}
+
+/* ── responsive polish: tables, replay, toolbar fit phones cleanly ────────── */
+.std-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.std-scroll .std-table{min-width:520px}      /* scroll the wide standings table instead of clipping it */
+@media(max-width:620px){
+  /* the Results sticky header uses full-bleed negative margins — match the
+     narrower mobile .wrap padding so it doesn't push the page wider than the screen */
+  .res-freeze{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}
+}
+@media(max-width:880px){
+  #replay{height:70vh;min-height:460px}
+  .rt-bar{gap:10px}
+  .rt-field{flex:1 1 100%}
+  .rt-select{max-width:none;width:100%}
+  .rt-live{align-self:flex-start}
+  .rt-status{flex:1 1 100%;align-self:flex-start}
+}
+@media(max-width:560px){
+  #replay{height:64vh;min-height:420px}
+  .page-head{flex-direction:column;align-items:flex-start;gap:8px}
+  .sec-head h2{font-size:20px}
 }

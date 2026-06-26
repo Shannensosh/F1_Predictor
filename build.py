@@ -619,7 +619,7 @@ def build_overview(d):
       <div class="sec-sub">Top three on the road · after {completed} rounds</div></div>
     <div class="fin-grid">{"".join(fin_driver(x) for x in dr[:3])}</div>
     <details class="standings-more"><summary>Full standings · all {len(dr)} drivers →</summary>
-      {drivers_table}</details>"""
+      <div class="std-scroll">{drivers_table}</div></details>"""
 
     # ── constructors' championship: car-photo image-back cards + rest ───────
     def fin_team(x):
@@ -657,7 +657,7 @@ def build_overview(d):
     <div class="sec-head"><h2>Constructors' Championship</h2>
       <div class="sec-sub">The teams' title fight</div></div>
     <div class="fin-grid">{"".join(fin_team(x) for x in cons[:3])}</div>
-    <details class="standings-more"><summary>Full standings · all {len(cons)} teams →</summary>{cons_table}</details>"""
+    <details class="standings-more"><summary>Full standings · all {len(cons)} teams →</summary><div class="std-scroll">{cons_table}</div></details>"""
 
     # ── one photo-led news feed (latest F1 headlines, most recent first) ────
     news = d.get("news", [])
