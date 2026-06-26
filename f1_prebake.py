@@ -22,6 +22,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.join(HERE, "f1-race-replay")
 DATA = os.path.join(HERE, "data")
+REPLAY_DIR = os.path.join(DATA, "replay")     # one r{round}.json per race + index.json
 sys.path.insert(0, REPO)
 
 FPS_OUT = 1.0            # baked frame rate (the browser port interpolates)
@@ -34,6 +35,33 @@ def latest_round():
         results = json.load(f)
     rounds = [r["round"] for r in results.get("2026", [])]
     return 2026, (max(rounds) if rounds else 1)
+
+
+def write_manifest():
+    """(Re)build data/replay/index.json from every baked r{round}.json so the
+    Live Timing page can offer a race picker (most-recent first)."""
+    os.makedirs(REPLAY_DIR, exist_ok=True)
+    races = []
+    for fn in sorted(os.listdir(REPLAY_DIR)):
+        if not (fn.startswith("r") and fn.endswith(".json")) or fn == "index.json":
+            continue
+        try:
+            with open(os.path.join(REPLAY_DIR, fn)) as f:
+                m = json.load(f).get("meta", {})
+        except Exception:
+            continue
+        races.append({
+            "round": m.get("round"), "event": m.get("event"),
+            "circuit": m.get("circuit"), "country": m.get("country"),
+            "date": m.get("date"), "total_laps": m.get("total_laps"),
+            "gps_last_lap": m.get("gps_last_lap"), "file": fn,
+        })
+    races = [r for r in races if r["round"] is not None]
+    races.sort(key=lambda r: r["round"], reverse=True)        # newest first
+    with open(os.path.join(REPLAY_DIR, "index.json"), "w") as f:
+        json.dump({"races": races}, f, separators=(",", ":"))
+    print(f"✓ manifest: {len(races)} baked race(s) → replay/index.json")
+    return races
 
 
 def main():
@@ -308,12 +336,14 @@ def main():
         "gps_end": {c: round(s["gps_end"] - tmin, 1) for c, s in series.items()},
         "frames": frames,
     }
-    out = os.path.join(DATA, "replay_race.json")
+    os.makedirs(REPLAY_DIR, exist_ok=True)
+    out = os.path.join(REPLAY_DIR, f"r{rnd}.json")
     with open(out, "w") as f:
         json.dump(payload, f, separators=(",", ":"))
     print(f"✓ {len(frames)} frames, {len(series)} drivers, {total_laps} laps, "
-          f"{len(drs_zones)} DRS zones, rot {rotation:.0f}° → replay_race.json "
+          f"{len(drs_zones)} DRS zones, rot {rotation:.0f}° → replay/r{rnd}.json "
           f"({os.path.getsize(out)/1e6:.1f} MB)")
+    write_manifest()
 
 
 if __name__ == "__main__":

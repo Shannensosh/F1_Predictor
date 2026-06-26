@@ -4,6 +4,9 @@ __pycache__/
 nohup.out
 # FastF1 raw telemetry cache (hundreds of MB — rebuilt/cached in CI)
 data/ff1cache/
+# baked replays are copied into the site at build time from data/replay/ (the
+# committed source) — don't double-commit the generated copy
+site/replay/
 # repo-internal computed cache + any local venv
 f1-race-replay/computed_data/
 f1-race-replay/venv/

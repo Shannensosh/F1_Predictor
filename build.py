@@ -1395,27 +1395,44 @@ def main():
         except Exception as e:  # noqa: BLE001 — keep whatever we already had
             print("   ! analytics extraction failed:", e)
 
-    # live page = the f1-race-replay browser port, fed by the baked replay of
-    # the latest Grand Prix (f1_prebake.py). Re-bake if it's stale.
-    replay = _load_opt("replay_race.json", None)
-    if completed and (replay is None or replay.get("meta", {}).get("round") != completed):
-        print(f"» baking replay for round {completed} (f1_prebake)")
-        try:
-            import subprocess
-            subprocess.run([sys.executable, os.path.join(HERE, "f1_prebake.py")],
-                           check=True, timeout=1800)
-            replay = _load_opt("replay_race.json", None)
-        except Exception as e:  # noqa: BLE001 — keep the previous bake if any
-            print("   ! prebake failed:", e)
-    d["replay"] = replay
+    # live page = the f1-race-replay browser port. Every completed 2026 round is
+    # baked into its own data/replay/r{n}.json (incremental — only missing rounds
+    # are baked) so the page can offer a race picker; the most recent is default.
+    import shutil
+    import subprocess
+    replay_data_dir = os.path.join(DATA, "replay")
+    os.makedirs(replay_data_dir, exist_ok=True)
+    completed_rounds = sorted(r["round"] for r in d["results"].get("2026", []))
+    for rnd in completed_rounds:
+        if not os.path.exists(os.path.join(replay_data_dir, f"r{rnd}.json")):
+            print(f"» baking replay for round {rnd} (f1_prebake)")
+            try:
+                subprocess.run([sys.executable, os.path.join(HERE, "f1_prebake.py"),
+                                "2026", str(rnd)], check=True, timeout=1800)
+            except Exception as e:  # noqa: BLE001 — skip a race that won't bake
+                print(f"   ! prebake round {rnd} failed:", e)
+    # (re)build the manifest from whatever baked successfully, newest first
+    try:
+        import f1_prebake
+        d["replay_index"] = {"races": f1_prebake.write_manifest()}
+    except Exception as e:  # noqa: BLE001
+        print("   ! manifest build failed:", e)
+        d["replay_index"] = _load_opt(os.path.join("replay", "index.json"),
+                                       {"races": []})
+    # copy baked replays into the deployed site so the browser can fetch them
+    site_replay = os.path.join(SITE, "replay")
+    os.makedirs(site_replay, exist_ok=True)
+    for fn in os.listdir(replay_data_dir):
+        if fn.endswith(".json"):
+            shutil.copy(os.path.join(replay_data_dir, fn), os.path.join(site_replay, fn))
 
     print("» rendering pages")
     pages = {
         "index.html": build_splash(d),
         "dashboard.html": build_overview(d),
         "live-timing.html": page("PITWALL F1 · Race Replay", "Live Timing",
-                                  live_timing_body(d, ctx), data=replay,
-                                  js=LIVE_JS, live_badge="Replay"),
+                                  live_timing_body(d, ctx), data=d.get("replay_index", {"races": []}),
+                                  js=LIVE_JS, live_badge="Live · Replay"),
         "schedule.html": build_schedule(d),
         "results.html": build_results(d, ctx),
         "standings.html": ('<!DOCTYPE html><meta charset="utf-8">'

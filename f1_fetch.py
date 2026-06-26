@@ -954,8 +954,33 @@ def refresh_live():
     print(f"» refresh: cleared {n} live-season cache files")
 
 
+def is_race_weekend(window_days=3):
+    """True if a 2026 round's race day is today or within the next `window_days`
+    (real calendar date) — i.e. a Thu–Sun Grand Prix weekend. Used by CI to gate
+    the hourly refresh so it only runs frequently around actual race weekends."""
+    import datetime
+    try:
+        with open(os.path.join(DATA_DIR, "schedule.json")) as f:
+            sched = json.load(f)
+    except Exception:
+        return False
+    rows = sched.get("2026", sched) if isinstance(sched, dict) else sched
+    today = datetime.date.today()
+    for r in rows:
+        ds = (r.get("date") or "")[:10]
+        try:
+            d = datetime.date.fromisoformat(ds)
+        except ValueError:
+            continue
+        if 0 <= (d - today).days <= window_days:
+            return True
+    return False
+
+
 if __name__ == "__main__":
     import sys as _sys
+    if "--is-race-weekend" in _sys.argv:
+        _sys.exit(0 if is_race_weekend() else 1)
     if "--refresh" in _sys.argv:
         refresh_live()
     fetch_all()

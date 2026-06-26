@@ -1,9 +1,10 @@
-name: Daily refresh & deploy
+name: Refresh & deploy
 
 on:
   schedule:
-    - cron: "30 5 * * *"        # every day 05:30 UTC
-  workflow_dispatch:             # manual run button
+    - cron: "30 5 * * *"          # every day 05:30 UTC — always builds
+    - cron: "0 * * * 5,6,0"       # hourly Fri/Sat/Sun — builds only on a race weekend
+  workflow_dispatch:               # manual run button
   push:
     branches: [main]
 
@@ -29,26 +30,58 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Gate: the daily cron / manual / push always build. The hourly cron only
+      # builds during an actual race weekend (a 2026 race day within 3 days), so
+      # we don't burn Actions minutes rebuilding hourly on empty weekends.
+      - id: gate
+        run: |
+          python f1_fetch.py --is-race-weekend && WK=1 || WK=0
+          echo "race weekend? $WK"
+          if [ "${{ github.event.schedule }}" = "0 * * * 5,6,0" ] && [ "$WK" != "1" ]; then
+            echo "go=0" >> "$GITHUB_OUTPUT"
+            echo "Hourly trigger but not a race weekend — skipping build."
+          else
+            echo "go=1" >> "$GITHUB_OUTPUT"
+          fi
+
       # FastF1 raw telemetry cache — only re-downloads when a NEW round needs baking
-      - uses: actions/cache@v4
+      - if: steps.gate.outputs.go == '1'
+        uses: actions/cache@v4
         with:
           path: data/ff1cache
-          key: ff1cache-v1
+          key: ff1cache-v2-${{ github.run_id }}
+          restore-keys: ff1cache-v2-
+
+      # Baked per-round replays — persist across runs so a round is baked once,
+      # not re-baked every hour during a race weekend (the JSONs are also committed,
+      # this just carries forward rounds baked after the last commit).
+      - if: steps.gate.outputs.go == '1'
+        uses: actions/cache@v4
+        with:
+          path: data/replay
+          key: replays-v1-${{ github.run_id }}
+          restore-keys: replays-v1-
 
       - name: Install dependencies
+        if: steps.gate.outputs.go == '1'
         run: pip install --quiet numpy requests scipy pandas fastf1
 
       - name: Refresh live data (news · results · standings · forecast)
+        if: steps.gate.outputs.go == '1'
         run: python f1_fetch.py --refresh
 
-      - name: Build (prediction model · maps · race-replay bake · all pages)
+      - name: Build (predictions · maps · per-round replay bakes · all pages)
+        if: steps.gate.outputs.go == '1'
         run: python build.py
 
-      - uses: actions/configure-pages@v5
+      - if: steps.gate.outputs.go == '1'
+        uses: actions/configure-pages@v5
 
-      - uses: actions/upload-pages-artifact@v3
+      - if: steps.gate.outputs.go == '1'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - id: deployment
+        if: steps.gate.outputs.go == '1'
         uses: actions/deploy-pages@v4
