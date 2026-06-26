@@ -37,17 +37,27 @@ def latest_round():
     return 2026, (max(rounds) if rounds else 1)
 
 
+def _read_payload(path):
+    """Load a baked replay whether it's a plain .json or a .js JSONP wrapper
+    (__onReplay({...}) — used so the page loads over file:// via <script>, where
+    fetch() is blocked)."""
+    with open(path) as f:
+        txt = f.read()
+    if path.endswith(".js"):
+        txt = txt[txt.index("(") + 1: txt.rindex(")")]
+    return json.loads(txt)
+
+
 def write_manifest():
-    """(Re)build data/replay/index.json from every baked r{round}.json so the
+    """(Re)build data/replay/index.json from every baked r{round}.js so the
     Live Timing page can offer a race picker (most-recent first)."""
     os.makedirs(REPLAY_DIR, exist_ok=True)
     races = []
     for fn in sorted(os.listdir(REPLAY_DIR)):
-        if not (fn.startswith("r") and fn.endswith(".json")) or fn == "index.json":
+        if not (fn.startswith("r") and fn.endswith(".js")):
             continue
         try:
-            with open(os.path.join(REPLAY_DIR, fn)) as f:
-                m = json.load(f).get("meta", {})
+            m = _read_payload(os.path.join(REPLAY_DIR, fn)).get("meta", {})
         except Exception:
             continue
         races.append({
@@ -337,11 +347,15 @@ def main():
         "frames": frames,
     }
     os.makedirs(REPLAY_DIR, exist_ok=True)
-    out = os.path.join(REPLAY_DIR, f"r{rnd}.json")
+    # JSONP wrapper so the page can load it via <script> over file:// (where
+    # fetch() of a local file is blocked) as well as over HTTP
+    out = os.path.join(REPLAY_DIR, f"r{rnd}.js")
     with open(out, "w") as f:
+        f.write("__onReplay(")
         json.dump(payload, f, separators=(",", ":"))
+        f.write(")")
     print(f"✓ {len(frames)} frames, {len(series)} drivers, {total_laps} laps, "
-          f"{len(drs_zones)} DRS zones, rot {rotation:.0f}° → replay/r{rnd}.json "
+          f"{len(drs_zones)} DRS zones, rot {rotation:.0f}° → replay/r{rnd}.js "
           f"({os.path.getsize(out)/1e6:.1f} MB)")
     write_manifest()
 

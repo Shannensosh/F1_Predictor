@@ -25,7 +25,7 @@
 
     <div class="rt-bar">
       <label class="rt-field"><span>Replay race</span>
-        <select id="raceSel" class="rt-select"><option value="r7.json" data-laps="66" data-gps="66">R7 · Barcelona Grand Prix — Barcelona (2026-06-14)</option><option value="r6.json" data-laps="78" data-gps="5">R6 · Monaco Grand Prix — Monte Carlo (2026-06-07)</option><option value="r5.json" data-laps="68" data-gps="68">R5 · Canadian Grand Prix — Montréal (2026-05-24)</option><option value="r4.json" data-laps="57" data-gps="57">R4 · Miami Grand Prix — Miami Gardens (2026-05-03)</option><option value="r3.json" data-laps="53" data-gps="53">R3 · Japanese Grand Prix — Suzuka (2026-03-29)</option><option value="r2.json" data-laps="56" data-gps="56">R2 · Chinese Grand Prix — Shanghai (2026-03-15)</option><option value="r1.json" data-laps="58" data-gps="58">R1 · Australian Grand Prix — Melbourne (2026-03-08)</option></select></label>
+        <select id="raceSel" class="rt-select"><option value="r7.js" data-laps="66" data-gps="66">R7 · Barcelona Grand Prix — Barcelona (2026-06-14)</option><option value="r6.js" data-laps="78" data-gps="5">R6 · Monaco Grand Prix — Monte Carlo (2026-06-07)</option><option value="r5.js" data-laps="68" data-gps="68">R5 · Canadian Grand Prix — Montréal (2026-05-24)</option><option value="r4.js" data-laps="57" data-gps="57">R4 · Miami Grand Prix — Miami Gardens (2026-05-03)</option><option value="r3.js" data-laps="53" data-gps="53">R3 · Japanese Grand Prix — Suzuka (2026-03-29)</option><option value="r2.js" data-laps="56" data-gps="56">R2 · Chinese Grand Prix — Shanghai (2026-03-15)</option><option value="r1.js" data-laps="58" data-gps="58">R1 · Australian Grand Prix — Melbourne (2026-03-08)</option></select></label>
       <button id="liveBtn" class="rt-live" title="Check for a live session and follow it live">
         <span class="rt-dot"></span> LIVE</button>
       <span id="rt-status" class="rt-status"></span>
@@ -45,7 +45,7 @@
   PITWALL · Educational / entertainment only — not affiliated with Formula 1.
   Built 2026-06-26.
 </div></footer>
-<script id="DATA" type="application/json">{"races":[{"round":7,"event":"Barcelona Grand Prix","circuit":"Barcelona","country":"Spain","date":"2026-06-14","total_laps":66,"gps_last_lap":66,"file":"r7.json"},{"round":6,"event":"Monaco Grand Prix","circuit":"Monte Carlo","country":"Monaco","date":"2026-06-07","total_laps":78,"gps_last_lap":5,"file":"r6.json"},{"round":5,"event":"Canadian Grand Prix","circuit":"Montr\u00e9al","country":"Canada","date":"2026-05-24","total_laps":68,"gps_last_lap":68,"file":"r5.json"},{"round":4,"event":"Miami Grand Prix","circuit":"Miami Gardens","country":"United States","date":"2026-05-03","total_laps":57,"gps_last_lap":57,"file":"r4.json"},{"round":3,"event":"Japanese Grand Prix","circuit":"Suzuka","country":"Japan","date":"2026-03-29","total_laps":53,"gps_last_lap":53,"file":"r3.json"},{"round":2,"event":"Chinese Grand Prix","circuit":"Shanghai","country":"China","date":"2026-03-15","total_laps":56,"gps_last_lap":56,"file":"r2.json"},{"round":1,"event":"Australian Grand Prix","circuit":"Melbourne","country":"Australia","date":"2026-03-08","total_laps":58,"gps_last_lap":58,"file":"r1.json"}]}</script>
+<script id="DATA" type="application/json">{"races":[{"round":7,"event":"Barcelona Grand Prix","circuit":"Barcelona","country":"Spain","date":"2026-06-14","total_laps":66,"gps_last_lap":66,"file":"r7.js"},{"round":6,"event":"Monaco Grand Prix","circuit":"Monte Carlo","country":"Monaco","date":"2026-06-07","total_laps":78,"gps_last_lap":5,"file":"r6.js"},{"round":5,"event":"Canadian Grand Prix","circuit":"Montr\u00e9al","country":"Canada","date":"2026-05-24","total_laps":68,"gps_last_lap":68,"file":"r5.js"},{"round":4,"event":"Miami Grand Prix","circuit":"Miami Gardens","country":"United States","date":"2026-05-03","total_laps":57,"gps_last_lap":57,"file":"r4.js"},{"round":3,"event":"Japanese Grand Prix","circuit":"Suzuka","country":"Japan","date":"2026-03-29","total_laps":53,"gps_last_lap":53,"file":"r3.js"},{"round":2,"event":"Chinese Grand Prix","circuit":"Shanghai","country":"China","date":"2026-03-15","total_laps":56,"gps_last_lap":56,"file":"r2.js"},{"round":1,"event":"Australian Grand Prix","circuit":"Melbourne","country":"Australia","date":"2026-03-08","total_laps":58,"gps_last_lap":58,"file":"r1.js"}]}</script>
 <script src="assets/app.js"></script>
 <script>
 var MANIFEST=(typeof PAGE_DATA==='function'?PAGE_DATA():null)||{races:[]};
@@ -80,6 +80,7 @@ var holdRewind=false, holdForward=false;
 var buttons=[];                          // transport hit rects (replay)
 var lbRects=[];                          // leaderboard hit rects
 var rafStarted=false;
+var userChoseReplay=false;               // a manual race pick disables live auto-switch
 
 /* replay track geometry (rebuilt per race) */
 var rot=0,cosR=1,sinR=0, ref=[],inner=[],outer=[],drsZones=[];
@@ -543,11 +544,19 @@ function updateNote(){
       +'playback switches to timing-only after.</div>';
   } else el.innerHTML='';
 }
+// replays load via <script> (JSONP) not fetch(), so the page also works when
+// opened straight off disk as a file:// URL (where fetch() of a local file is
+// blocked). Each replay/r{n}.js calls __onReplay(payload).
+var _replayScript=null;
+window.__onReplay=function(data){ setReplayData(data); setStatus('Replay · '+(META.event||'')); startLoop(); };
 function loadRace(file){
   if(!file){ setStatus('No replay selected'); return; }
   setStatus('Loading replay…');
-  jget('replay/'+file).then(function(j){ setReplayData(j); setStatus('Replay · '+(META.event||'')); startLoop(); })
-    .catch(function(e){ setStatus('Could not load replay ('+e.message+')'); });
+  if(_replayScript){ _replayScript.onerror=null; _replayScript.remove(); _replayScript=null; }
+  var s=document.createElement('script');
+  s.src='replay/'+file;
+  s.onerror=function(){ setStatus('Could not load replay ('+file+')'); };
+  _replayScript=s; document.head.appendChild(s);
 }
 
 /* ── unified loop ───────────────────────────────────────────────────────── */
@@ -639,9 +648,10 @@ function toggleSel(code,multi){
 }
 
 /* ── wiring ─────────────────────────────────────────────────────────────── */
-if(selEl){ selEl.addEventListener('change',function(){ stopLive(); loadRace(selEl.value); }); }
+if(selEl){ selEl.addEventListener('change',function(){ userChoseReplay=true; stopLive(); loadRace(selEl.value); }); }
 if(liveBtn){ liveBtn.addEventListener('click',function(){
   if(LIVE.active){ stopLive(); loadRace(selEl?selEl.value:''); return; }
+  userChoseReplay=false;                 // explicit LIVE click re-enables auto-follow
   setStatus('Checking for a live session…');
   checkLive().then(function(s){
     if(s) startLive(s);
@@ -659,11 +669,12 @@ checkLive().then(function(s){
   else if(selEl && selEl.value){ loadRace(selEl.value); }
   else { setStatus('No replays available yet.'); }
 });
-// while watching a replay, quietly re-check every 90s so the page flips to LIVE
-// on its own the moment a session goes green — no manual refresh needed
+// while idling on the default replay, quietly re-check every 90s so the page
+// flips to LIVE on its own when a session goes green — but never override a
+// replay the user explicitly picked (they can opt back in with the LIVE button)
 setInterval(function(){
-  if(LIVE.active) return;
-  checkLive().then(function(s){ if(s && !LIVE.active) startLive(s); });
+  if(LIVE.active || userChoseReplay) return;
+  checkLive().then(function(s){ if(s && !LIVE.active && !userChoseReplay) startLive(s); });
 }, 90000);
 })();
 </script>

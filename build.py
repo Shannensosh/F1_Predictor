@@ -1404,7 +1404,7 @@ def main():
     os.makedirs(replay_data_dir, exist_ok=True)
     completed_rounds = sorted(r["round"] for r in d["results"].get("2026", []))
     for rnd in completed_rounds:
-        if not os.path.exists(os.path.join(replay_data_dir, f"r{rnd}.json")):
+        if not os.path.exists(os.path.join(replay_data_dir, f"r{rnd}.js")):
             print(f"» baking replay for round {rnd} (f1_prebake)")
             try:
                 subprocess.run([sys.executable, os.path.join(HERE, "f1_prebake.py"),
@@ -1421,9 +1421,11 @@ def main():
                                        {"races": []})
     # copy baked replays into the deployed site so the browser can fetch them
     site_replay = os.path.join(SITE, "replay")
+    if os.path.isdir(site_replay):
+        shutil.rmtree(site_replay)            # clear stale files (e.g. old .json)
     os.makedirs(site_replay, exist_ok=True)
     for fn in os.listdir(replay_data_dir):
-        if fn.endswith(".json"):
+        if fn.endswith((".js", ".json")):     # r{n}.js JSONP payloads + index.json
             shutil.copy(os.path.join(replay_data_dir, fn), os.path.join(site_replay, fn))
 
     print("» rendering pages")

@@ -84,6 +84,7 @@ var holdRewind=false, holdForward=false;
 var buttons=[];                          // transport hit rects (replay)
 var lbRects=[];                          // leaderboard hit rects
 var rafStarted=false;
+var userChoseReplay=false;               // a manual race pick disables live auto-switch
 
 /* replay track geometry (rebuilt per race) */
 var rot=0,cosR=1,sinR=0, ref=[],inner=[],outer=[],drsZones=[];
@@ -547,11 +548,19 @@ function updateNote(){
       +'playback switches to timing-only after.</div>';
   } else el.innerHTML='';
 }
+// replays load via <script> (JSONP) not fetch(), so the page also works when
+// opened straight off disk as a file:// URL (where fetch() of a local file is
+// blocked). Each replay/r{n}.js calls __onReplay(payload).
+var _replayScript=null;
+window.__onReplay=function(data){ setReplayData(data); setStatus('Replay · '+(META.event||'')); startLoop(); };
 function loadRace(file){
   if(!file){ setStatus('No replay selected'); return; }
   setStatus('Loading replay…');
-  jget('replay/'+file).then(function(j){ setReplayData(j); setStatus('Replay · '+(META.event||'')); startLoop(); })
-    .catch(function(e){ setStatus('Could not load replay ('+e.message+')'); });
+  if(_replayScript){ _replayScript.onerror=null; _replayScript.remove(); _replayScript=null; }
+  var s=document.createElement('script');
+  s.src='replay/'+file;
+  s.onerror=function(){ setStatus('Could not load replay ('+file+')'); };
+  _replayScript=s; document.head.appendChild(s);
 }
 
 /* ── unified loop ───────────────────────────────────────────────────────── */
@@ -643,9 +652,10 @@ function toggleSel(code,multi){
 }
 
 /* ── wiring ─────────────────────────────────────────────────────────────── */
-if(selEl){ selEl.addEventListener('change',function(){ stopLive(); loadRace(selEl.value); }); }
+if(selEl){ selEl.addEventListener('change',function(){ userChoseReplay=true; stopLive(); loadRace(selEl.value); }); }
 if(liveBtn){ liveBtn.addEventListener('click',function(){
   if(LIVE.active){ stopLive(); loadRace(selEl?selEl.value:''); return; }
+  userChoseReplay=false;                 // explicit LIVE click re-enables auto-follow
   setStatus('Checking for a live session…');
   checkLive().then(function(s){
     if(s) startLive(s);
@@ -663,11 +673,12 @@ checkLive().then(function(s){
   else if(selEl && selEl.value){ loadRace(selEl.value); }
   else { setStatus('No replays available yet.'); }
 });
-// while watching a replay, quietly re-check every 90s so the page flips to LIVE
-// on its own the moment a session goes green — no manual refresh needed
+// while idling on the default replay, quietly re-check every 90s so the page
+// flips to LIVE on its own when a session goes green — but never override a
+// replay the user explicitly picked (they can opt back in with the LIVE button)
 setInterval(function(){
-  if(LIVE.active) return;
-  checkLive().then(function(s){ if(s && !LIVE.active) startLive(s); });
+  if(LIVE.active || userChoseReplay) return;
+  checkLive().then(function(s){ if(s && !LIVE.active && !userChoseReplay) startLive(s); });
 }, 90000);
 })();
 """
